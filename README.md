@@ -1,49 +1,13 @@
-<h1>E-paper Weather Display</h1>
+<h1>**DO NOT USE YET, NO CHANGES FROM ORIGINAL REPOSITORY**</h1>
+<h1>Tempest E-paper Weather Display</h1>
 <br>
-  Raspberry Pi weather display using Waveshare e-paper 7.5 inch display, Open Weather Map API, and Python.
-<img src="https://github.com/AbnormalDistributions/e_paper_weather_display/blob/master/photos/photo2.jpg" width=40% height=40%>
-<img src="https://github.com/AbnormalDistributions/e_paper_weather_display/blob/master/photos/photo1.jpg" width=40% height=40%> <br>
-
-<p>If you like what you see, consider <a href="https://ko-fi.com/abnormaldistributions">buying me a coffee</a>.
+  Raspberry Pi weather display using Waveshare e-paper 7.5 inch display, Tempest Weather Station data, and Python.
 
 <h1>Versions</h1>
   <h2>Version 1.0</h2>
     <ul>
 	  <li>Initial Commit.</li>
 	</ul>
-  <h2>Version 1.1</h2>
-    <ul>
-      <li>Switched to more legible icons.</li>
-    </ul>
-  <h2>Version 1.2</h2>
-    <ul>
-      <li>Added support for connection errors.</li>
-      <li>Added support for HTTP errors.</li>
-      <li>Added "dispay_error" fuction to display respective errors if present.</li>
-    </ul>
-  <h2>Version 1.3</h2>
-    <ul>
-      <li>Added option to store retreived weather data in CSV file.</li>
-    </ul>
-  <h2>Version 1.4</h2>
-    <ul>
-      <li>Updated to use all 480 vertical pixels instead of just 450.</li>
-    </ul>
-  <h2>Version 1.5</h2>
-    <ul>
-      <li>Fixed error where "TAKEOUT TRASH TODAY!" was writing in incorrect font size.</li>
-    </ul>
-  <h2>Version 1.6</h2>
-    <ul>
-      <li>Increased size of fonts for "Humidity" and "Wind" for better legibility.</li>
-    </ul>
-  <h2>Version 1.7</h2>
-    <ul>
-      <li>Added clear screen function to reduce possibility of burn-in.</li>
-      <li>Changed refresh time from 300 to 600 seconds.</li>
-    </ul>
-
-
 
 <h1>Setup</h1>
   <ol type="1">
