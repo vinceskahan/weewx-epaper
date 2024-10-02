@@ -1,4 +1,3 @@
-<h1>**DO NOT USE YET, NO CHANGES FROM ORIGINAL REPOSITORY**</h1>
 <h1>Tempest E-paper Weather Display</h1>
 <br>
   Raspberry Pi weather display using Waveshare e-paper 7.5 inch display, Tempest Weather Station data, and Python.
@@ -11,31 +10,29 @@
 
 <h1>Setup</h1>
   <ol type="1">
-    <li>The first thing you need is a free API key from https://home.openweathermap.org/users/sign_up.</li>
-    <li>Open 'weather.py' and replace **Key Here** with your API key.</li>
-    <li>**Location** can be left as it is unless you want to add it to your display.</li>
-    <li>Get your **longitude** and **lattitude** using I used https://www.latlong.net and put that in as well.</li>
-    <li>Set CSV_OPTION to False if you would not like weather data appended to 'records.csv' after every refresh.</li>
-    <li>There is also a reminder for taking out the trash near the end of the script that you will want to change if your trash pickup doesn't come on Monday and Thursday like mine. :)</li>
+    <li>Assuming you have a Pi of your choice loaded, you will need to setup the e-paper display per the instructions from WaveShare: https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_(B)_Manual#Working_With_Raspberry_Pi.  *Note: these instructions are for tthe 3 color screen which I am using.  I have included comments in the code to change it back to the 2 color if desired.</li>
+    <li>Open 'weather.py' and replace **Station ID here** with you station ID (Log into tempestwx.com - after successful login your station id will be listed at the end of the URL: https://tempestwx.com/station/XXXXXX) and **Token Here** with your API key (Create authorization at https://tempestwx.com/settings/tokens).</li>
+    <li>Get your State/County ID from NSW to populate Watch/Warning data.  I have not found a great way to get this data other than using a multi-step process.  1. Go to https://www.weather.gov and enter your ZIP code on the left.  2. After the locaiton loads, click on "Get detailed info" 3. Select your city if needed 4. Get the coordinates out of the URL - these will be plugged into the API via browser of your choice: https://api.weather.gov/points/[start,end] - read through the data and look for "county": at the end of the JSON response.  This is your county code to plug into the Python code.  </li>
   </ol>
-<br>
-That's about it. Run the python file and you should see output on the display. 
+<br> 
 
 # Note 
-If you are not using a 7.5 inch Version 2 display, you will want to replace 'epd7in5_V2.py' in the 'lib' folder with whichever one you have from https://github.com/waveshare/e-Paper/tree/master/RaspberryPi_JetsonNano/python/lib/waveshare_epd<br>
+If you are not using a 7.5 inch Version 2b display, you will want to replace 'epd7in5b_V2.py' in the 'lib' folder with whichever one you have from https://github.com/waveshare/e-Paper/tree/master/RaspberryPi_JetsonNano/python/lib/waveshare_epd<br>
 Fairly extensive adjustments will have to be made for other sized screens.
+
+Optional items - there is code embedded that at a gust of 10MPH (at time of refresh) the current weather status will update to "IT HECKIN WIMDY" meme.  This was a nod to the Mrs who loves the meme, but by no means is required to remain.  THis section of code can easily be commented out and the windy.png icon replaced.  Simply remove windy.png and rename windy2.png to windy.png.  
 
 # Parts
 <ul>
-  <li>https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT</li>
-  <li>Raspberry Pi 3, but this will run on any of them except the Pi Zero that doesn't have soldered headers.</li>
+  <li>https://www.waveshare.com/7.5inch-e-paper-hat-b.htm -OR- https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT</li>
+  <li>Raspberry Pi ZeroW+</li>
   <li>SD card for the Pi at least 8 GB.</li>
   <li>Power supply for the Pi.</li>
-  <li>5 x 7 inch photo frame from a thrift store.</li>
+  <li>5 x 7 inch photo frame</li>
+  <li>Optional: 3D printer to print new back/mask for frame</li>
 </ul>
 
-<h1>Credit</h1>
-  Icon designs are originally by [Erik Flowers] (https://erikflowers.github.io/weather-icons/). Some icons have been modified. 
+
 
 <h1>Licensing</h1>
   <ul>
