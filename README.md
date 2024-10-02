@@ -29,7 +29,7 @@ The storm data on this build is dynamic.  Rain totals, severe weather alerts, an
 <br>
 <b>Normal:</b>
 <br>
-<img src="https://github.com/OG-Anorine/Tempest-7.5-E-Paper-Display/blob/master/photos/out.png"> 
+<img src="https://github.com/OG-Anorine/Tempest-7.5-E-Paper-Display/blob/master/photos/no_storm.png"> 
 <br>
 <br>
 If you are not using a 7.5 inch Version 2b display, you will want to replace 'epd7in5b_V2.py' in the 'lib' folder with whichever one you have from https://github.com/waveshare/e-Paper/tree/master/RaspberryPi_JetsonNano/python/lib/waveshare_epd<br>
