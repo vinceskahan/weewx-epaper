@@ -51,7 +51,6 @@ Optional items - there is code embedded that at a gust of 10MPH (at time of refr
 
 <h1>Licensing</h1>
   <ul>
-    <li>Weather Icons licensed under [SIL OFL 1.1](http://scripts.sil.org/OFL)</li>
     <li>Code licensed under [MIT License](http://opensource.org/licenses/mit-license.html)</li>
     <li>Documentation licensed under [CC BY 3.0](http://creativecommons.org/licenses/by/3.0)</li>
   <ul>
