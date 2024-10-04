@@ -32,6 +32,7 @@ else:
     alerts_zone      = config['alerts_zone']
     twocolor_display = config['twocolor_display']
     debug            = config['debug']
+    debug_nws        = config['debug_nws']
     debug_screen     = config['debug_screen']
 
 picdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pic')
