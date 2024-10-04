@@ -1,5 +1,33 @@
+#-------------------------------------------------------
+# this is modified to use v4.0 of the waveshare libs
+# which is older than the ones we started with here
+#
+# TODO: get it working with latest version of the libs
+#-------------------------------------------------------
+
 # This is a heavily modified version of e_paper_weather_display
 # All data has been tweaked to be pulled from TempestWX
+
+#---- start editing here ----
+# TODO: these should be in an external file we read in
+
+# TempestWX URL with API Token and Station ID
+station = '12345'   # obfuscated for now
+token = '12345'     # obfuscated for now
+
+# set this to 1 for two-color, 0 for three-color hardware
+TWOCOLOR=1
+
+# api.weather.gov alerts zone URL
+API_WEATHER_GOV_ALERTS_URL="https://api.weather.gov/alerts/active?zone=WAC071"    # NE WA has some alerts
+
+# set to 1 for debugging messages throughout
+DEBUG=1
+
+# set to 1 for debugging screen open/close minimal writes
+DEBUG_SCREEN=0
+
+#----  stop editing here ----
 
 import sys
 import os
@@ -10,9 +38,12 @@ fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
 # Search lib folder for display driver modules
 sys.path.append('lib')
 
-#Pick correct 7.5" waveshare screen - current build is for the 3 color
-from waveshare_epd import epd7in5b_V2
-epd = epd7in5b_V2.EPD()
+if TWOCOLOR:
+    from waveshare_epd import epd7in5_V2
+    epd = epd7in5_V2.EPD()
+else:
+    from waveshare_epd import epd7in5b_V2
+    epd = epd7in5b_V2.EPD()
 
 from datetime import datetime
 import time
@@ -23,6 +54,39 @@ import requests, urllib.request, json
 from io import BytesIO
 import csv
 
+# test function to get 'anything' to the screen
+def write_test_info(image, sleep_seconds):
+    print('writing test info to screen')
+    h_image = Image.new('1', (epd.width, epd.height), 255)
+
+    # Open the template
+    screen_output_file = Image.open(os.path.join(picdir, image))
+    # Initialize the drawing context with template as background
+    h_image.paste(screen_output_file, (0, 0))
+    epd.init()
+    epd.Clear()
+    epd.init_fast()
+    Himage = Image.new('1', (epd.width, epd.height), 255)  # 255: clear the frame
+    draw = ImageDraw.Draw(Himage)
+    draw.text((10, 0), 'hello world', font = font20, fill = 0)
+    draw.text((10, 20), '7.5inch e-Paper', font = font20, fill = 0)
+    draw.text((150, 0), u'微雪电子', font = font20, fill = 0)
+    draw.line((20, 50, 70, 100), fill = 0)
+    draw.line((70, 50, 20, 100), fill = 0)
+    draw.rectangle((20, 50, 70, 100), outline = 0)
+    draw.line((165, 50, 165, 100), fill = 0)
+    draw.line((140, 75, 190, 75), fill = 0)
+    draw.arc((140, 50, 190, 100), 0, 360, fill = 0)
+    draw.rectangle((80, 50, 130, 100), fill = 0)
+    draw.chord((200, 50, 250, 100), 0, 360, fill = 0)
+    epd.display(epd.getbuffer(Himage))
+    time.sleep(2)
+    epd.Clear()
+
+    epd.sleep()
+    print('sleeping for ' + str(sleep_seconds) + '.')
+    time.sleep(sleep_seconds)
+
 # define funciton for writing image and sleeping for 5 min.
 def write_to_screen(image, sleep_seconds):
     print('Writing to screen.')
@@ -30,15 +94,24 @@ def write_to_screen(image, sleep_seconds):
     h_image = Image.new('1', (epd.width, epd.height), 255)
 
     #Comment/Remove both lines if using 2 color screen
-    h_red_image = Image.new('1', (epd.width, epd.height), 255)  # 250*122
-    draw_red = ImageDraw.Draw(h_red_image)
+    #if TWOCOLOR:
+        #h_red_image = Image.new('1', (epd.width, epd.height), 255)  # 250*122
+        #draw_red = ImageDraw.Draw(h_red_image)
+    #else:
+        #h_red_image = Image.new('1', (epd.width, epd.height), 255)  # 250*122
+        #draw_red = ImageDraw.Draw(h_red_image)
 
     # Open the template
     screen_output_file = Image.open(os.path.join(picdir, image))
     # Initialize the drawing context with template as background
     h_image.paste(screen_output_file, (0, 0))
     epd.init()
-    epd.display(epd.getbuffer(h_image), epd.getbuffer(h_red_image)) #Comment/Remove from the comma on if using a 2 color screen
+
+    if TWOCOLOR:
+        epd.display(epd.getbuffer(h_image))
+    else:
+        epd.display(epd.getbuffer(h_image), epd.getbuffer(h_red_image)) #Comment/Remove from the comma on if using a 2 color screen
+
     # Sleep
     time.sleep(2)
     epd.sleep()
@@ -62,8 +135,11 @@ def display_error(error_source):
     error_image.save(os.path.join(picdir, error_image_file))
     # Close error image
     error_image.close()
-    # Write error to screen 
-    write_to_screen(error_image_file, 30)
+    # Write error to screen
+    if DEBUG_SCREEN:
+        write_test_info(error_image_file, 30)
+    else:
+        write_to_screen(error_image_file, 30)
 
 # Set the fonts
 font20 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 20)
@@ -90,10 +166,7 @@ print('Initializing and clearing screen.')
 epd.init()
 epd.Clear()
 
-#TempestWX URL with API Token and Station ID
-station = '**Station ID here**'
-token = '**Token Here**'
-
+# these are set at the top of this file
 URL = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + station + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + token
 
 while True:
@@ -109,8 +182,8 @@ while True:
         except:
             # Call function to display connection error
             print('Connection error.')
-            display_error('CONNECTION') 
-    
+            display_error('CONNECTION')
+
     error = None
     while error == None:
         # Check status of code request
@@ -122,13 +195,13 @@ while True:
             f.close()
             # get current dict block
             current = wxdata['current_conditions']
-	    # get current
+            # get current
             temp_current = current['air_temperature']
-	    # get feels like
+            # get feels like
             feels_like = current['feels_like']
             # get humidity
             humidity = current['relative_humidity']
-            #get dew point
+            # get dew point
             dewpt = current['dew_point']
             # get wind speed
             wind = current['wind_avg']
@@ -139,7 +212,7 @@ while True:
             report = current['conditions']
             if report == 'Thunderstorms Possible':
                 report = 'T-Storms Possible'
-            #get pressure trend
+            # get pressure trend
             baro = current['sea_level_pressure']
             trend = current['pressure_trend']
             # get icon url - manually override for wind > 10mph
@@ -148,19 +221,32 @@ while True:
                 icon_code = 'windy'
             else:
                 icon_code = current['icon']
-            #Lighning strikes in the last 3 hours
-            strikesraw = current['lightning_strike_count_last_3hr']
+            # Lighning strikes in the last 3 hours
+            try:
+                strikesraw = current['lightning_strike_count_last_3hr']
+            except:
+                strikesraw = 0
             strikes = f"{strikesraw:,}"
-            #Lightning distance message
-            lightningdist = current['lightning_strike_last_distance_msg']
+
+            # Lightning distance message
+            try:
+                lightningdist = current['lightning_strike_last_distance_msg']
+            except:
+                lightningdist = 0
 
             # get daily dict block
             daily = wxdata['forecast']['daily'][0]
 
             # get daily precip
             daily_precip_percent = daily['precip_probability']
-            total_rain = current['precip_accum_local_day']
-            rain_time = current['precip_minutes_local_day']
+            try:
+                total_rain = current['precip_accum_local_day']
+            except:
+                total_rain = 0
+            try:
+                rain_time = current['precip_minutes_local_day']
+            except:
+                rain_time = 0
             if rain_time > 0 and total_rain <= 0:
                 total_rain = 1000
             # get min and max temp
@@ -169,12 +255,19 @@ while True:
             temp_min = daily['air_temp_low']
             sunriseepoch = daily['sunrise']
             sunsetepoch = daily['sunset']
-            #Convert epoch to readable time 
+            #Convert epoch to readable time
             sunrise = datetime.fromtimestamp(sunriseepoch)
             sunset = datetime.fromtimestamp(sunsetepoch)
+
+            # this should just happen regardless of whether the WF API works
             #Get Severe weather data from NWS
-            response = requests.get("https://api.weather.gov/alerts/active?zone=OHC173")
+            if DEBUG:
+                print("trying to get weather alerts")
+            response = requests.get(API_WEATHER_GOV_ALERTS_URL)
             nws = response.json()
+            if DEBUG:
+                print("    done - the following is the payload")
+                print(nws)
 
             try:
                 alert = nws['features'][int(0)]['properties']
@@ -188,7 +281,7 @@ while True:
                 string_event = event
             #Uncomment for testing string_event = 'Severe Thunderstorm Warning'
             #Uncomment for testing print(string_event)
-            
+
             # Set strings to be printed to screen
             string_temp_current = format(temp_current, '.0f') + u'\N{DEGREE SIGN}F'
             string_feels_like = 'Feels like: ' + format(feels_like, '.0f') +  u'\N{DEGREE SIGN}F'
@@ -321,4 +414,9 @@ while True:
     template.close()
 
     # Write to screen
-    write_to_screen(screen_output_file, 300)
+    if DEBUG_SCREEN:
+        write_test_info(screen_output_file, 300)
+    else:
+        write_to_screen(screen_output_file, 300)
+
+#TODO - should cleanup on exit

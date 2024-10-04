@@ -1,2 +1,5 @@
-
 .DS_Store
+pic/screen_output.png
+lib/waveshare_epd/__pycache__
+pic/error.png
+weather.py.testing
