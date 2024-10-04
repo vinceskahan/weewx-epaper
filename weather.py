@@ -1,58 +1,58 @@
 #-------------------------------------------------------
 # this is modified to use v4.0 of the waveshare libs
 # which is older than the ones we started with here
-#
-# TODO: get it working with latest version of the libs
 #-------------------------------------------------------
 
-# This is a heavily modified version of e_paper_weather_display
-# All data has been tweaked to be pulled from TempestWX
-
-#---- start editing here ----
-# TODO: these should be in an external file we read in
-
-# TempestWX URL with API Token and Station ID
-station = '12345'   # obfuscated for now
-token = '12345'     # obfuscated for now
-
-# set this to 1 for two-color, 0 for three-color hardware
-TWOCOLOR=1
-
-# api.weather.gov alerts zone URL
-API_WEATHER_GOV_ALERTS_URL="https://api.weather.gov/alerts/active?zone=WAC071"    # NE WA has some alerts
-
-# set to 1 for debugging messages throughout
-DEBUG=1
-
-# set to 1 for debugging screen open/close minimal writes
-DEBUG_SCREEN=0
-
-#----  stop editing here ----
-
-import sys
+# alphabetical order here so we can keep track
+import csv
+from   io import BytesIO
+import json
 import os
+from   datetime import datetime
+from   pathlib import Path
+from   PIL import Image,ImageDraw,ImageFont
+import requests
+import sys
+import time
+import traceback
+import urllib.request
+
+# read in config file
+CONFIG="config.json"
+if not Path(CONFIG).is_file():
+    print("ERROR - cannot find config file")
+    sys.exit(1)
+else:
+    with open(CONFIG) as file:
+        config = json.load(file)
+        file.close()
+
+    station_id       = config['station_id']
+    api_token        = config['api_token']
+    alerts_zone      = config['alerts_zone']
+    twocolor_display = config['twocolor_display']
+    debug            = config['debug']
+    debug_screen     = config['debug_screen']
+
 picdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pic')
 icondir = os.path.join(picdir, 'icon')
 fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
 
+# assemble some url we will use below
+current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + station_id \
+                        + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + api_token
+
+alerts_url = "https://api.weather.gov/alerts/active?zone=" + alerts_zone
+
 # Search lib folder for display driver modules
 sys.path.append('lib')
 
-if TWOCOLOR:
+if twocolor_display:
     from waveshare_epd import epd7in5_V2
     epd = epd7in5_V2.EPD()
 else:
     from waveshare_epd import epd7in5b_V2
     epd = epd7in5b_V2.EPD()
-
-from datetime import datetime
-import time
-from PIL import Image,ImageDraw,ImageFont
-import traceback
-
-import requests, urllib.request, json
-from io import BytesIO
-import csv
 
 # test function to get 'anything' to the screen
 def write_test_info(image, sleep_seconds):
@@ -107,7 +107,7 @@ def write_to_screen(image, sleep_seconds):
     h_image.paste(screen_output_file, (0, 0))
     epd.init()
 
-    if TWOCOLOR:
+    if twocolor_display:
         epd.display(epd.getbuffer(h_image))
     else:
         epd.display(epd.getbuffer(h_image), epd.getbuffer(h_red_image)) #Comment/Remove from the comma on if using a 2 color screen
@@ -136,7 +136,7 @@ def display_error(error_source):
     # Close error image
     error_image.close()
     # Write error to screen
-    if DEBUG_SCREEN:
+    if debug_screen == "True":
         write_test_info(error_image_file, 30)
     else:
         write_to_screen(error_image_file, 30)
@@ -166,9 +166,6 @@ print('Initializing and clearing screen.')
 epd.init()
 epd.Clear()
 
-# these are set at the top of this file
-URL = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + station + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + token
-
 while True:
     # Ensure there are no errors with connection
     error_connect = True
@@ -176,7 +173,7 @@ while True:
         try:
             # HTTP request
             print('Attempting to connect to Tempest WX.')
-            response = requests.get(URL)
+            response = requests.get(current_conditions_url)
             print('Connection to Tempest WX successful.')
             error_connect = None
         except:
@@ -190,11 +187,17 @@ while True:
         if response.status_code == 200:
             print('JSON pull from Tempest WX successful.')
             # get data in jason format
-            f = urllib.request.urlopen(URL)
+            f = urllib.request.urlopen(current_conditions_url)
             wxdata = json.load(f)
             f.close()
+
             # get current dict block
-            current = wxdata['current_conditions']
+            try:
+                current = wxdata['current_conditions']
+            except:
+                print("no current conditions - exiting...")
+                sys.exit(0)
+
             # get current
             temp_current = current['air_temperature']
             # get feels like
@@ -261,11 +264,11 @@ while True:
 
             # this should just happen regardless of whether the WF API works
             #Get Severe weather data from NWS
-            if DEBUG:
+            if debug == "True":
                 print("trying to get weather alerts")
-            response = requests.get(API_WEATHER_GOV_ALERTS_URL)
+            response = requests.get(alerts_url)
             nws = response.json()
-            if DEBUG:
+            if debug_nws == "True":
                 print("    done - the following is the payload")
                 print(nws)
 
@@ -414,9 +417,12 @@ while True:
     template.close()
 
     # Write to screen
-    if DEBUG_SCREEN:
+    if debug_screen == "True":
+        print("  debug_screen is ..." , debug_screen)
         write_test_info(screen_output_file, 300)
     else:
         write_to_screen(screen_output_file, 300)
+
+    #write_to_screen(screen_output_file, 300)
 
 #TODO - should cleanup on exit

@@ -1,0 +1,27 @@
+{
+    "station_id"       : "12345" ,
+    "api_token"        : "12345123-1234-1234-1234-123456789012" ,
+    "alerts_zone"      : "WAC071" ,
+    "twocolor_display" : "1" ,
+    "debug"            : "False" ,
+    "debug_nws"        : "False" ,
+    "debug_screen"     : "False"
+}
+
+#-----------------------------------------------------------
+# ACTION REQUIRED BEFORE RUNNING THIS APPLICATION
+#-----------------------------------------------------------
+#
+# 1. copy this file to 'config.json'
+# 2. edit config.json and edit in your pertinent values.
+#      Be sure to quote the values and keep the trailing
+#      comma (where present).
+# 3. delete this comment block from your edited config.json
+#
+# 4. (optional)
+#      To check your file's validity you can run through
+#     the jq utility ala:
+#        apt-get install -y jq
+#        cat config.json | jq .
+#
+#-----------------------------------------------------------
