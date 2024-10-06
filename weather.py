@@ -31,33 +31,6 @@ def read_config_file(CONFIG):
 
 #-----------------------------------------------------------
 
-config = read_config_file('config.json')
-
-picdir  = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pic')
-icondir = os.path.join(picdir, 'icon')
-fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
-
-# assemble some url we will use below
-current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + config['station_id'] \
-                        + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + config['api_token']
-
-alerts_url = "https://api.weather.gov/alerts/active?zone=" + config['alerts_zone']
-
-#-----------------------------------------------------------
-
-# search lib folder for display driver modules
-sys.path.append('lib')
-
-# use the correct module for the specified type of display
-if config['twocolor_display']:
-    from waveshare_epd import epd7in5_V2
-    epd = epd7in5_V2.EPD()
-else:
-    from waveshare_epd import epd7in5b_V2
-    epd = epd7in5b_V2.EPD()
-
-#-----------------------------------------------------------
-
 # test function to get 'anything' to the screen
 def write_test_info(image, sleep_seconds):
     print('writing test info to screen')
@@ -145,6 +118,31 @@ def display_error(error_source):
         write_to_screen(error_image_file, 30)
 
 #-----------------------------------------------------------
+# main() here
+#-----------------------------------------------------------
+
+config = read_config_file('config.json')
+
+picdir  = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pic')
+icondir = os.path.join(picdir, 'icon')
+fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
+
+# assemble some url we will use below
+current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + config['station_id'] \
+                        + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + config['api_token']
+
+alerts_url = "https://api.weather.gov/alerts/active?zone=" + config['alerts_zone']
+
+# search lib folder for display driver modules
+sys.path.append('lib')
+
+# use the correct module for the specified type of display
+if config['twocolor_display']:
+    from waveshare_epd import epd7in5_V2
+    epd = epd7in5_V2.EPD()
+else:
+    from waveshare_epd import epd7in5b_V2
+    epd = epd7in5b_V2.EPD()
 
 # Set the fonts
 font20 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 20)
@@ -176,9 +174,18 @@ epd.Clear()
 
 #-----------------------------------------------------------
 
+# This is wrapped in a try/except block so we can catch
+# keyboard interrupts and cleanly init/clear/sleep the
+# display to try to prevent burn-in.  It is not perfect
+# but catches most of the ^C interrupts gracefully enough
+
 try:
     while True:
-        # TODO: no need for while given one pass through try/except
+
+        #--------------------------------
+        # connect to the Tempest WX API
+        #--------------------------------
+
         # Ensure there are no errors with connection
         error_connect = True
         while error_connect == True:
@@ -192,26 +199,36 @@ try:
                 # Call function to display connection error
                 print('Connection error.')
                 display_error('CONNECTION')
+                # TODO: shouldn't we sleep before trying again ?
 
-        # TODO: no need for while given one pass through try/except
+        #--------------------------------
+        # get Tempest WX current conditions
+        #--------------------------------
+
         error = None
         while error == None:
             # Check status of code request
             if response.status_code == 200:
                 print('JSON pull from Tempest WX successful.')
-                # get data in jason format
+                # get data in json format
                 f = urllib.request.urlopen(current_conditions_url)
                 wxdata = json.load(f)
                 f.close()
 
-                # get current dict block
+                # get current conditions
                 try:
                     current = wxdata['current_conditions']
                 except:
+                    #TODO: should this display_error ?
                     print("no current conditions - exiting...")
                     sys.exit(0)
 
-                # TODO: this should be a decode_current_conditions() routine
+                #--------------------------------
+                # decode the current conditions
+                #--------------------------------
+
+                # TODO: this should be a decode_current_conditions(current) routine
+                # TODO: should each element be in a try/except block just.in.case. ?
                 temp_current = current['air_temperature']
                 feels_like   = current['feels_like']
                 humidity     = current['relative_humidity']
@@ -259,18 +276,21 @@ try:
                 if rain_time > 0 and total_rain <= 0:
                     total_rain = 1000
 
-                # get min and max temp
+                # current and daily min and max temp
                 daily_temp   = current['air_temperature']
                 temp_max     = daily['air_temp_high']
                 temp_min     = daily['air_temp_low']
                 sunriseepoch = daily['sunrise']
                 sunsetepoch  = daily['sunset']
 
-                #Convert epoch to readable time
+                # convert epoch to readable time
                 sunrise = datetime.fromtimestamp(sunriseepoch)
-                sunset = datetime.fromtimestamp(sunsetepoch)
+                sunset  = datetime.fromtimestamp(sunsetepoch)
 
-                # this should just happen regardless of whether the WF API works
+                #--------------------------------
+                # get and decode any NWS alerts
+                #--------------------------------
+
                 # Get Severe weather data from NWS
                 if config['debug'] == "True":
                     print("trying to get weather alerts")
@@ -290,7 +310,10 @@ try:
                     string_event = event
                     # TODO: what if this is not true ?
 
-                # Set strings to be printed to screen
+                #--------------------------------
+                # generate strings to display
+                #--------------------------------
+
                 string_temp_current = format(temp_current, '.0f') + u'\N{DEGREE SIGN}F'
                 string_feels_like     = 'Feels like: ' + format(feels_like, '.0f') +  u'\N{DEGREE SIGN}F'
                 string_humidity       = 'Humidity: ' + str(humidity) + '%'
@@ -308,19 +331,26 @@ try:
                     string_total_rain = 'Total: Trace | Duration: ' + str(rain_time) + ' min'
                 string_rain_time      = str(rain_time) + 'min'
 
-                # Set error code to false
+                # Set error code to false to break out of this while loop
                 error = False
 
             else:
                 # Call function to display HTTP error
                 display_error('HTTP')
+                # TODO: shouldn't we sleep before trying again ?
 
+
+        #------------------------------
+
+        # at this point we've gotten Tempest WX current conditions
+        # and the NWS alert information, so assemble the graphical
+        # elements to display to the screen
 
         # TODO: this should be a generate_display_elements() routine
 
-        # Open template file
+        # Open template file and initialize the drawing context
+        #    with the template as background
         template = Image.open(os.path.join(picdir, 'template.png'))
-        # Initialize the drawing context with template as background
         draw = ImageDraw.Draw(template)
 
         # Draw top left box
@@ -357,11 +387,11 @@ try:
         draw.text((360, 195), string_feels_like, font=font50, fill=black) #350,210
         difference = int(feels_like) - int(temp_current)
         if difference >= 5:
-            feels_file = 'finghot.png'
+            feels_file = 'finghot.png'   #---- TODO: rename this (really dude?)
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
         if difference <= -5:
-            feels_file = 'fingcold.png'
+            feels_file = 'fingcold.png'   #---- TODO: rename this (really dude?)
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
 
@@ -433,12 +463,15 @@ try:
         else:
             write_to_screen(screen_output_file, 300)
 
-        #write_to_screen(screen_output_file, 300)
-
 except KeyboardInterrupt:
     print()
-    print("---- exiting on control-c ----")
+    print()
+    print("#-----------------------------------")
+    print("#       exiting on control-c        ")
+    print("#    (this takes a few seconds)     ")
     epd.init()
     epd.Clear()
     epd.sleep()
-    print("---- exiting ----")
+    print("#          done                     ")
+    print("#-----------------------------------")
+    print()
