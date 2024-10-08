@@ -130,16 +130,20 @@ def get_nws_alerts():
     try:
         # note this gets the first alert only, there might be multiple ones in the NWS payload
         alert    = nws['features'][int(0)]['properties']
+    except IndexError:
+        alert    = None
+
+    if alert:
         event    = alert['event']
         urgency  = alert['urgency']
         severity = alert['severity']
-    except IndexError:
-        alert    = None
+
     # TODO: why does this only look for 'some' alerts ?
     if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement')):
         string_event = event
     else:
-        string_event = ""    # alerts unconfigured or None
+        string_event = None
+
     return string_event
 
 #-----------------------------------------------------------
@@ -159,11 +163,51 @@ if config['data_source'] == "WeatherFlow":
 else:
     current_conditions_url = ""
 
+
+#------ how to get NWS forecasts ----
+#
+# look up the forecast url based on your lat/lon
+#    lat=47.31; lon=-122.36 ; myurl="https://api.weather.gov/points/" + str(lat) + "," + str(lon)
+#    print(myurl)
+#    sys.exit(0)
+#
+# run that url ala https://api.weather.gov/points/47.31,-122.36 and it returns:
+#    "properties": {
+#        "forecastZone": "https://api.weather.gov/zones/forecast/WAZ558
+#        "forecast": "https://api.weather.gov/gridpoints/SEW/121,54/forecast",
+#
+# run the forecast url and it returns properties['periods'][0] of
+#                "temperature": 67,
+#                "temperatureUnit": "F",
+#                "temperatureTrend": "",
+#                "probabilityOfPrecipitation": {
+#                    "unitCode": "wmoUnit:percent",
+#                    "value": 20
+#                },
+#                "windSpeed": "7 mph",
+#                "windDirection": "SW",
+#                "icon": "https://api.weather.gov/icons/land/day/rain_showers,20?size=medium",
+#                "shortForecast": "Slight Chance Rain Showers",
+#            },
+# so....
+#
+#    forecast                         = properties['periods'][0]
+#    forecast_temp                    = forecast['temperature']
+#    forecast_precip_pct              = forecast['probabilityOfPrecipitation']['value']
+#    forecast_wind                    = forecast['windSpeed']
+#    forecast_wind_cardinal_direction = forecast['windDirection']
+#    forecast_string                  = forecast['shortForecast']
+#
+# careful on some values, they might read "10 to 14 mph" or the like
+#
+
 if config['alerts_source'] == "NWS":
     alerts_url = "https://api.weather.gov/alerts/active?zone=" + config['alerts_zone']
 else:
     alerts_url = ""
 
+# Tampa is FLZ151
+#alerts_url = "https://api.weather.gov/alerts/active?zone=" + "FLZ151"
 
 # search lib folder for display driver modules
 sys.path.append('lib')
