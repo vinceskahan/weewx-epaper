@@ -118,6 +118,31 @@ def display_error(error_source):
         write_to_screen(error_image_file, 30)
 
 #-----------------------------------------------------------
+
+def get_nws_alerts():
+    # Get Severe weather data from NWS
+    if config['debug'] == "True":
+        print("trying to get weather alerts")
+    if config['debug_nws'] == "True":
+        print("   ") ; print(alerts_url)
+    response = requests.get(alerts_url)
+    nws = response.json()
+    try:
+        # note this gets the first alert only, there might be multiple ones in the NWS payload
+        alert    = nws['features'][int(0)]['properties']
+        event    = alert['event']
+        urgency  = alert['urgency']
+        severity = alert['severity']
+    except IndexError:
+        alert    = None
+    # TODO: why does this only look for 'some' alerts ?
+    if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement')):
+        string_event = event
+    else:
+        string_event = ""    # alerts unconfigured or None
+    return string_event
+
+#-----------------------------------------------------------
 # main() here
 #-----------------------------------------------------------
 
@@ -128,10 +153,17 @@ icondir = os.path.join(picdir, 'icon')
 fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
 
 # assemble some url we will use below
-current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + config['station_id'] \
+if config['data_source'] == "WeatherFlow":
+    current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + config['station_id'] \
                         + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + config['api_token']
+else:
+    current_conditions_url = ""
 
-alerts_url = "https://api.weather.gov/alerts/active?zone=" + config['alerts_zone']
+if config['alerts_source'] == "NWS":
+    alerts_url = "https://api.weather.gov/alerts/active?zone=" + config['alerts_zone']
+else:
+    alerts_url = ""
+
 
 # search lib folder for display driver modules
 sys.path.append('lib')
@@ -183,28 +215,43 @@ try:
     while True:
 
         #--------------------------------
+        # get and decode any NWS alerts
+        #--------------------------------
+
+        if config['alerts_source'] == "NWS":
+            string_event = get_nws_alerts()
+        else:
+            string_event = ""
+
+        #--------------------------------
         # connect to the Tempest WX API
         #--------------------------------
 
+        #TODO: this should be a connect_to_weatherflow() routine
         # Ensure there are no errors with connection
         error_connect = True
         while error_connect == True:
-            try:
-                # HTTP request
-                print('Attempting to connect to Tempest WX.')
-                response = requests.get(current_conditions_url)
-                print('Connection to Tempest WX successful.')
-                error_connect = None
-            except:
-                # Call function to display connection error
-                print('Connection error.')
-                display_error('CONNECTION')
-                # TODO: shouldn't we sleep before trying again ?
+
+            if config['data_source'] == "WeatherFlow":
+                try:
+                    # HTTP request
+                    print('Attempting to connect to Tempest WX.')
+                    response = requests.get(current_conditions_url)
+                    print('Connection to Tempest WX successful.')
+                    error_connect = None
+                except:
+                    # Call function to display connection error
+                    print('Connection error.')
+                    display_error('CONNECTION')
+            else:
+                print("data source unconfigured")
+                time.sleep(2)   # TODO: actually no conditions to get
 
         #--------------------------------
         # get Tempest WX current conditions
         #--------------------------------
 
+        # TODO: this should be a decode_weatherflow_data() routine called in the happy path above
         error = None
         while error == None:
             # Check status of code request
@@ -223,6 +270,45 @@ try:
                     print("no current conditions - exiting...")
                     sys.exit(0)
 
+                # test data only - screen uses only 1,2,3,4,5,6,8,10,12,13,20 and icon
+                # current = { 
+     #          #       'air_temperature': 1,
+     #          #       'feels_like': 2,
+     #          #       'relative_humidity': 3,
+     #          #       'dew_point': 4,
+     #          #       'wind_avg': 5,
+     #          #       'wind_direction_cardinal': '6' ,
+     #unused    #       'wind_gust': 7,
+     #          #       'conditions': '8',
+                #       'report': '9',
+     #          #       'sea_level_pressure': 10,
+     #unused    #       'pressure_trend': 11,
+     #          #       'icon': "rainy",
+                #       'lightning_strike_count_last_3hr': 12,
+                #       'lightning_strike_last_distance_msg': "13 miles",
+                #       'daily': 14,
+                #       'daily_precip_percent': 15,
+                #       'total_rain': 16,
+                #       'rain_time': 17,
+                #       'daily_temp': 18,
+                #       'temp_max': 19,
+                #       'temp_min': 20,
+                #       'sunrise': 21,
+                #       'sunset': 22,
+                #   }
+
+
+                # actual queried data from API for a station with no actual sensor
+                #
+                # print(current)
+                #
+                # {'air_density': 1.21, 'air_temperature': 58.0, 'conditions': 'Cloudy', 'delta_t': 2.0, 
+                #  'dew_point': 55.0, 'feels_like': 58.0, 'icon': 'cloudy', 'is_precip_local_day_rain_check': False, 
+                #  'pressure_trend': 'steady', 'relative_humidity': 89, 'sea_level_pressure': 29.967, 'solar_radiation': 270, 
+                #  'station_pressure': 29.628, 'time': 1728412200, 'uv': 1, 'wet_bulb_globe_temperature': 58.0, 
+                #  'wet_bulb_temperature': 56.0, 'wind_avg': 7.0, 'wind_direction': 199, 'wind_direction_cardinal': 'SSW', 'wind_gust': 13.0}
+
+
                 #--------------------------------
                 # decode the current conditions
                 #--------------------------------
@@ -235,7 +321,7 @@ try:
                 dewpt        = current['dew_point']
                 wind         = current['wind_avg']
                 windcard     = current['wind_direction_cardinal']
-                gust         =  current['wind_gust']
+                gust         = current['wind_gust']
                 weather      = current['conditions']
                 report       = current['conditions']
                 if report == 'Thunderstorms Possible':
@@ -260,11 +346,16 @@ try:
                 except:
                     lightningdist = 0
 
+                # TODO: should be in a get_forecast() routine
                 # get daily forcast for today
-                daily = wxdata['forecast']['daily'][0]
-
-                # get daily precip percentage forecast and current accumulation
+                daily = wxdata['forecast']['daily'][0]      # this is the WF forecast
+                temp_max     = daily['air_temp_high']
+                temp_min     = daily['air_temp_low']
+                sunriseepoch = daily['sunrise']
+                sunsetepoch  = daily['sunset']
                 daily_precip_percent = daily['precip_probability']
+
+                # actual rain
                 try:
                     total_rain = current['precip_accum_local_day']
                 except:
@@ -277,38 +368,12 @@ try:
                     total_rain = 1000
 
                 # current and daily min and max temp
+                # TODO: this should be renamed to current_temp or the like
                 daily_temp   = current['air_temperature']
-                temp_max     = daily['air_temp_high']
-                temp_min     = daily['air_temp_low']
-                sunriseepoch = daily['sunrise']
-                sunsetepoch  = daily['sunset']
 
                 # convert epoch to readable time
                 sunrise = datetime.fromtimestamp(sunriseepoch)
                 sunset  = datetime.fromtimestamp(sunsetepoch)
-
-                #--------------------------------
-                # get and decode any NWS alerts
-                #--------------------------------
-
-                # Get Severe weather data from NWS
-                if config['debug'] == "True":
-                    print("trying to get weather alerts")
-                response = requests.get(alerts_url)
-                nws = response.json()
-                if config['debug_nws'] == "True":
-                    print("    done - the following is the payload")
-                    print(nws)
-                try:
-                    alert    = nws['features'][int(0)]['properties']
-                    event    = alert['event']
-                    urgency  = alert['urgency']
-                    severity = alert['severity']
-                except IndexError:
-                    alert    = None
-                if alert != None and (event.endswith('Warning') or event.endswith('Watch')):
-                    string_event = event
-                    # TODO: what if this is not true ?
 
                 #--------------------------------
                 # generate strings to display

@@ -1,10 +1,12 @@
 {
+    "data_source"      : "WeatherFlow" ,
     "station_id"       : "12345" ,
     "api_token"        : "12345123-1234-1234-1234-123456789012" ,
-    "alerts_zone"      : "WAC071" ,
+    "alerts_source"    : "NWS" ,
+    "alerts_zone"      : "FLZ050" ,
     "twocolor_display" : "1" ,
     "debug"            : "False" ,
-    "debug_nws"        : "False" ,
+    "debug_nws"        : "True" ,
     "debug_screen"     : "False"
 }
 
