@@ -89,7 +89,7 @@ def write_to_screen(image, sleep_seconds):
     time.sleep(2)
     epd.sleep()
 
-    # TODO: this should be in the main program
+    # TODO: should this be in the main program ?
     print('Sleeping for ' + str(sleep_seconds) +'.')
     time.sleep(sleep_seconds)
 
@@ -102,10 +102,10 @@ def display_error(error_source):
     # Initialize drawing
     error_image = Image.new('1', (epd.width, epd.height), 255)
     draw = ImageDraw.Draw(error_image)
-    draw.text((100, 150), error_source +' ERROR', font=font50, fill=black)
+    draw.text((100, 150), error_source +' ERROR', font=font35, fill=black)
     draw.text((100, 300), 'Retrying in 30 seconds', font=font22, fill=black)
     current_time = datetime.now().strftime('%H:%M')
-    draw.text((300, 365), 'Last Refresh: ' + str(current_time), font = font50, fill=black)
+    draw.text((300, 365), 'Last Refresh: ' + str(current_time), font = font35, fill=black)
     # Save the error image
     error_image_file = 'error.png'
     error_image.save(os.path.join(picdir, error_image_file)) # TODO: this should go to /tmp
@@ -162,7 +162,6 @@ if config['data_source'] == "WeatherFlow":
                         + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + config['api_token']
 else:
     current_conditions_url = ""
-
 
 #------ how to get NWS forecasts ----
 #
@@ -287,9 +286,11 @@ try:
                     # Call function to display connection error
                     print('Connection error.')
                     display_error('CONNECTION')
+                    time.sleep(2)                 # don't bang on the remote server too much
             else:
-                print("data source unconfigured")
-                time.sleep(2)   # TODO: actually no conditions to get
+                print("data_source unconfigured")
+                display_error("DATA_SOURCE UNCONFIGURED")
+                #TODO: this should exit and clear rather than loop infinitely, which it currently does....
 
         #--------------------------------
         # get Tempest WX current conditions
@@ -314,7 +315,7 @@ try:
                     print("no current conditions - exiting...")
                     sys.exit(0)
 
-                # test data only - screen uses only 1,2,3,4,5,6,8,10,12,13,20 and icon
+                # test data only - screen uses only 1,2,3,4,5,6,8,10,12,13,20 and icon and 9
                 # current = { 
      #          #       'air_temperature': 1,
      #          #       'feels_like': 2,
@@ -324,7 +325,7 @@ try:
      #          #       'wind_direction_cardinal': '6' ,
      #unused    #       'wind_gust': 7,
      #          #       'conditions': '8',
-                #       'report': '9',
+     #          #       'report': '9',
      #          #       'sea_level_pressure': 10,
      #unused    #       'pressure_trend': 11,
      #          #       'icon': "rainy",
@@ -336,7 +337,7 @@ try:
                 #       'rain_time': 17,
                 #       'daily_temp': 18,
                 #       'temp_max': 19,
-                #       'temp_min': 20,
+     #          #       'temp_min': 20,
                 #       'sunrise': 21,
                 #       'sunset': 22,
                 #   }
@@ -428,7 +429,7 @@ try:
                 string_humidity       = 'Humidity: ' + str(humidity) + '%'
                 string_dewpt          = 'Dew Point: ' + format(dewpt, '.0f') +  u'\N{DEGREE SIGN}F'
                 string_wind           = 'Wind: ' + format(wind, '.1f') + ' MPH ' + windcard
-                #string_windcard = windcard
+                #string_windcard = windcard 
                 string_report         = 'Now: ' + report.title()
                 string_baro           = str(baro) + ' inHg'
                 string_temp_max       = 'High: ' + format(temp_max, '>.0f') + u'\N{DEGREE SIGN}F'
@@ -462,7 +463,7 @@ try:
         template = Image.open(os.path.join(picdir, 'template.png'))
         draw = ImageDraw.Draw(template)
 
-        # Draw top left box
+        # ----- Draw top left box
         #Logic for nighttime....DAYTIME
         nowcheck = datetime.now()
         if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('clear') or icon_code.startswith('partly'):
@@ -491,7 +492,7 @@ try:
         template.paste(precip_image, (15, 255)) #15, 260
         draw.text((65, 263), string_precip_percent, font=font22, fill=black) #65, 268
 
-        # Draw top right box
+        # ----- Draw top right box 
         draw.text((365, 35), string_temp_current, font=font160, fill=black) #375,35
         draw.text((360, 195), string_feels_like, font=font50, fill=black) #350,210
         difference = int(feels_like) - int(temp_current)
@@ -504,12 +505,12 @@ try:
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
 
-        # Draw bottom left box
+        # ----- Draw bottom left box
         draw.text((35, 330), string_temp_max, font=font50, fill=black) #35,325
         draw.line((170, 390, 265, 390), fill=black, width=4)
         draw.text((35, 395), string_temp_min, font=font50, fill=black) #35,390
 
-        # Draw bottom middle box
+        # ----- Draw bottom middle box
         rh_file = 'rh.png'
         rh_image = Image.open(os.path.join(icondir, rh_file))
         template.paste(rh_image, (320, 320))
@@ -524,8 +525,9 @@ try:
         draw.text((370, 435), string_wind, font=font23, fill=black) #345, 400
         #draw.text((535, 435), string_windcard, font=font23, fill=black)
 
-        # Draw bottom right box
-        #Begin Lightning mod
+        # ----- Draw bottom right box
+        #Lightning mod - this puts lightning info bottom right on the screen
+        #### strikesraw = 10; strikes = "12" ; lightningdist = "10 miles"   # vdsdebug
         if strikesraw >= 1:
             strike_file = 'strike.png'
             strike_image = Image.open(os.path.join(icondir, strike_file))
@@ -541,14 +543,15 @@ try:
             current_time = datetime.now().strftime('%H:%M')
             draw.text((627, 375), current_time, font = font60, fill=white)
 
-        #Precipitaton mod
+        #Precipitaton mod - this puts total rain and duration time on top of temperature
         if total_rain > 0 or total_rain == 1000:
             train_file = 'totalrain.png'
             train_image = Image.open(os.path.join(icondir, train_file))
             template.paste(train_image, (330, 15))
             draw.text((380, 22), string_total_rain, font=font23, fill=black)
 
-        #Severe Weather Mod
+        #Severe Weather Mod - this puts the alert text below feels like
+        # string_event = "foo bar" # vdsdebug
         try:
              if string_event != None:
                 alert_file = 'warning.png'
