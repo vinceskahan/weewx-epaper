@@ -496,11 +496,11 @@ try:
         draw.text((360, 195), string_feels_like, font=font50, fill=black) #350,210
         difference = int(feels_like) - int(temp_current)
         if difference >= 5:
-            feels_file = 'finghot.png'   #---- TODO: rename this (really dude?)
+            feels_file = 'veryhot.png'
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
         if difference <= -5:
-            feels_file = 'fingcold.png'   #---- TODO: rename this (really dude?)
+            feels_file = 'verycold.png'
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
 
