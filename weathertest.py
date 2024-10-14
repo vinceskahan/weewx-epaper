@@ -57,18 +57,36 @@ tmpdir  = "/tmp"
 # search lib folder for display driver modules
 sys.path.append('lib')
 
-# we'd also read the config file here.....
+# initialize some hashes used below
+conditions={}
 config = {}
+
+# we'd also read the config file here.....
 
 ###########################################################
 # set these true/false to manually test the screen result #
 ###########################################################
-                                                          #
-config['twocolor_display'] = True                         #
-lightning                  = False                        # 
-total_rain                 = 23                           #
-event                      = "test warning"               #
-                                                          #
+
+config['twocolor_display'] = True
+lightning                  = False
+
+# test data
+conditions['baro']         = 30.23
+conditions['dewpt']        = 54
+conditions['distance']     = 123
+conditions['event']        = None #"Storm Warning"    # or None
+conditions['feels_like']   = 55
+conditions['humidity']     = 98
+conditions['precip_pct']   = 78
+conditions['strikes']      =  4
+conditions['temp_current'] = 68.3
+conditions['temp_max']     = 72
+conditions['temp_min']     = 54
+conditions['total_rain']   = 2.2
+conditions['updated']      = "12:34"
+conditions['wind']         = 12.3
+conditions['windcardinal'] = "NNW"
+
 ###########################################################
 
 
@@ -123,43 +141,92 @@ try:
         template = Image.open(os.path.join(picdir, 'template.png'))
         draw = ImageDraw.Draw(template)
 
-        #### overlay scratch data onto the image
-        draw.text((65, 223),  "30.2" , font=font22,  fill=black)  # baro
-        draw.text((65, 263),  "72"   , font=font22,  fill=black)  # precip_pct
-        draw.text((35, 330),  "75"   , font=font50,  fill=black)  # temp_max
-        draw.text((35, 395),  "50"   , font=font50,  fill=black)  # temp_min
-        draw.text((360, 195), "66"   , font=font50,  fill=black)  # feels_like
-        draw.text((365, 35),  "68"   , font=font160, fill=black)  # temp_current
-        draw.text((370, 330), "78"   , font=font23,  fill=black)  # humidity
-        draw.text((370, 383), "54"   , font=font23,  fill=black)  # dewpt
-        draw.text((370, 435), "12"   , font=font23,  fill=black)  # wind
-        draw.text((380, 22),  "1.23" , font=font23,  fill=black)  # total_rain
-        draw.text((385, 263), event  , font=font23,  fill=black)  # event
+        # generate some strings with units and/or rounding as applicable
+        # TOODO: what if units are metric ?
 
-        if total_rain > 0 or total_rain == 1000:
-            train_image = Image.open(os.path.join(icondir, "totalrain.png"))
-            template.paste(train_image, (330, 15))
-            draw.text((380, 22), "l", font=font23, fill=black)
+        string_temp_max = 'High: ' + format(conditions['temp_max'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_temp_min = 'Low:  ' + format(conditions['temp_min'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_baro = str(conditions['baro']) +  ' in Hg'
+        string_precip_percent = 'Precip: ' + str(format(conditions['precip_pct'], '.0f'))  + '%'
+        string_feels_like = 'Feels like: ' + format(conditions['feels_like'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_temp_current = format(conditions['temp_current'], '.0f') + u'\N{DEGREE SIGN}F'
+        string_humidity = 'Humidity: ' + str(conditions['humidity']) + '%'
+        string_dewpt = 'Dew Point: ' + format(conditions['dewpt'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_wind = 'Wind: ' + format(conditions['wind'], '.1f') + ' MPH ' + conditions['windcardinal']
+
+        if conditions['event']:
+            string_event = conditions['event']
+        else:
+            string_event = ""
+
+        #### overlay scratch data onto the image
+        draw.text((35, 330),  string_temp_max                 , font=font50,  fill=black)  # temp_max
+        draw.text((35, 395),  string_temp_min                 , font=font50,  fill=black)  # temp_min
+        draw.text((65, 223),  string_baro                     , font=font22,  fill=black)  # baro
+        draw.text((65, 263),  string_precip_percent           , font=font22,  fill=black)  # precip_pct
+        draw.text((360, 195), string_feels_like               , font=font50,  fill=black)  # feels_like
+        draw.text((365, 35),  string_temp_current             , font=font160, fill=black)  # temp_current
+        draw.text((370, 330), string_humidity                 , font=font23,  fill=black)  # humidity
+        draw.text((370, 383), string_dewpt                    , font=font23,  fill=black)  # dewpt
+        draw.text((370, 435), string_wind                     , font=font23,  fill=black)  # wind
+        draw.text((380, 22),  str(conditions['total_rain'])   , font=font23,  fill=black)  # total_rain
+        draw.text((385, 263), ""                              , font=font23,  fill=black)  # event
+
+        #--------  top right box ------- 
+        # supersede severe weather event text if needed
         try:
-             if event != None:
+             if conditions['event'] != None:
                 alert_image = Image.open(os.path.join(icondir, "warning.png"))
                 template.paste(alert_image, (335, 255))
-                draw.text((385, 263), event, font=font23, fill=black)
+                draw.text((385, 263), str(conditions['event']) , font=font23, fill=black)
         except NameError:
             print('No Severe Weather')
 
+        # feels_like icon
+        difference = int(conditions['feels_like']) - int(conditions['temp_current'])
+        if difference >= 5:
+            feels_file = 'veryhot.png'
+            feels_image = Image.open(os.path.join(icondir, feels_file))
+            template.paste(feels_image, (720, 196))
+        if difference <= -5:
+            feels_file = 'verycold.png'
+            feels_image = Image.open(os.path.join(icondir, feels_file))
+            template.paste(feels_image, (720, 196))
+
+        #--------  bottom middle box -----
+        # icons
+        rh_file = 'rh.png'
+        rh_image = Image.open(os.path.join(icondir, rh_file))
+        template.paste(rh_image, (320, 320))
+
+        dp_file = 'dp.png'
+        dp_image = Image.open(os.path.join(icondir, dp_file))
+        template.paste(dp_image, (320, 373))
+
+        wind_file = 'wind.png'
+        wind_image = Image.open(os.path.join(icondir, wind_file))
+        template.paste(wind_image, (320, 425))
+
+        # total_rain only if we have rain
+        if conditions['total_rain'] > 0 or conditions['total_rain'] == 1000:
+            train_image = Image.open(os.path.join(icondir, "totalrain.png"))
+            template.paste(train_image, (330, 15))
+            draw.text((380, 22), str(conditions['total_rain']), font=font23, fill=black)
+
+        #--------  bottom right box ------- 
+        # bottom right box
         if lightning:
             draw.text((695, 330), 'Strikes', font=font22, fill=white)
             draw.text((685, 400), 'Distance', font=font22, fill=white)
-            draw.text((683, 430), "m", font=font20, fill=white)  # distance
-            draw.text((703, 360), "n", font=font20, fill=white)  # strikes
+            draw.text((683, 430), str(conditions['distance']), font=font20, fill=white)  # distance
+            draw.text((703, 360), str(conditions['strikes']), font=font20, fill=white)  # strikes
             strike_image = Image.open(os.path.join(icondir, "strike.png"))
             template.paste(strike_image, (605, 305))
         else:
             draw.text((627, 330), 'UPDATED', font=font35, fill=white)
-            draw.text((627, 375), "12:34", font = font60, fill=white)  # HH:MM
+            draw.text((627, 375), conditions['updated'], font = font60, fill=white)  # HH:MM
 
-        # Save the image for display as PN
+        #-------- save the aggregate image ------
         screen_output_file = os.path.join(tmpdir, 'screen_output.png')
         template.save(screen_output_file) # TODO: this should go to /tmp
 
