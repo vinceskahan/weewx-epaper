@@ -5,6 +5,8 @@
 # note: for the 2-color display this needs to use the older
 #       v4.0 version of the waveshare libs but the 3-color
 #       still uses the original upstream (later) library
+#
+# also: I renamed the hot/cold icons to be less iffy :-)
 #-----------------------------------------------------------
 
 # alphabetical order here so we can keep track
@@ -20,7 +22,6 @@ import sys
 import time
 import traceback
 import urllib.request
-
 
 #---------------------------------------------------------------
 
@@ -64,32 +65,34 @@ config = {}
 # we'd also read the config file here.....
 
 ###########################################################
-# set these true/false to manually test the screen result #
+# temporary items in lieu of reading the config file
 ###########################################################
 
 config['twocolor_display'] = True
-lightning                  = False
-
-# test data
-conditions['baro']         = 30.23
-conditions['dewpt']        = 54
-conditions['distance']     = 123
-conditions['event']        = None #"Storm Warning"    # or None
-conditions['feels_like']   = 55
-conditions['humidity']     = 98
-conditions['precip_pct']   = 78
-conditions['strikes']      =  4
-conditions['temp_current'] = 68.3
-conditions['temp_max']     = 72
-conditions['temp_min']     = 54
-conditions['total_rain']   = 2.2
-conditions['updated']      = "12:34"
-conditions['wind']         = 12.3
-conditions['windcardinal'] = "NNW"
 
 ###########################################################
+# test data in lieu of getting actual data at this time
+###########################################################
+conditions['baro']         = 30.23            # inHg
+conditions['dewpt']        = 54               # degF
+conditions['distance']     = "12 mi"          # NNN mi
+conditions['event']        = "Storm Warning"  # or None
+conditions['feels_like']   = 55               # degF
+conditions['humidity']     = 98               # pct
+conditions['precip_pct']   = 78               # pct
+conditions['rain_time']    = 34               # min
+conditions['strikes']      = 0                # (count) or None
+conditions['temp_current'] = 68.3             # degF
+conditions['temp_max']     = 72               # degF
+conditions['temp_min']     = 54               # degF
+conditions['total_rain']   = 2.2              # in
+conditions['updated']      = "12:34"          # HH:MM
+conditions['wind']         = 12.3             # mph
+conditions['windcardinal'] = "NNW"            # direction
+conditions['icon_code']    = "cloudy"         # see the icons dir for a list
+conditions['description']  = "Rain Possible"  # TODO: placeholder here
 
-
+###########################################################
 
 # use the correct module for the specified type of display
 if config['twocolor_display']:
@@ -153,27 +156,57 @@ try:
         string_humidity = 'Humidity: ' + str(conditions['humidity']) + '%'
         string_dewpt = 'Dew Point: ' + format(conditions['dewpt'], '.0f') +  u'\N{DEGREE SIGN}F'
         string_wind = 'Wind: ' + format(conditions['wind'], '.1f') + ' MPH ' + conditions['windcardinal']
+        string_description = 'Now: ' + conditions['description']  #TODO: placeholder here
+
+        # TODO: refactor this mess.....
+        if conditions['strikes'] is not None:
+            if int(conditions['strikes']) > 0:
+                string_strikes = str(conditions['strikes'])
+                string_distance = conditions['distance']
 
         if conditions['event']:
             string_event = conditions['event']
         else:
             string_event = ""
 
-        #### overlay scratch data onto the image
-        draw.text((35, 330),  string_temp_max                 , font=font50,  fill=black)  # temp_max
-        draw.text((35, 395),  string_temp_min                 , font=font50,  fill=black)  # temp_min
+        if conditions['total_rain'] < 1000:
+            string_total_rain = 'Total: ' + str(format(conditions['total_rain'], '.2f')) + ' in | Duration: ' + str(conditions['rain_time']) + ' min'
+        else:
+            string_total_rain = 'Total: Trace | Duration: ' + str(conditions['rain_time']) + ' min'
+            string_rain_time = str(conditions['rain_time']) + 'min'
+
+        #------------------------------------------------------------------------
+        #---------------- overlay data onto the image ---------------------------
+        #----------------           start             ---------------------------
+        #------------------------------------------------------------------------
+
+        #--------  top left box ------- 
+
+        #TODO: need nowcheck and sunrise/sunset code here for elif and else flow here
+        icon_code = conditions['icon_code']
+        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('clear') or icon_code.startswith('partly'):
+            icon_file = icon_code + '.png'
+        elif nowcheck >= sunrise and nowcheck < sunset:
+            icon_file = icon_code + '-day.png'
+        else:
+            icon_file = icon_code + '-night.png'
+        icon_image = Image.open(os.path.join(icondir, icon_file))
+        template.paste(icon_image, (40, 15))
+        draw.text((15, 183), string_description, font=font22, fill=black)
+
         draw.text((65, 223),  string_baro                     , font=font22,  fill=black)  # baro
         draw.text((65, 263),  string_precip_percent           , font=font22,  fill=black)  # precip_pct
-        draw.text((360, 195), string_feels_like               , font=font50,  fill=black)  # feels_like
-        draw.text((365, 35),  string_temp_current             , font=font160, fill=black)  # temp_current
-        draw.text((370, 330), string_humidity                 , font=font23,  fill=black)  # humidity
-        draw.text((370, 383), string_dewpt                    , font=font23,  fill=black)  # dewpt
-        draw.text((370, 435), string_wind                     , font=font23,  fill=black)  # wind
-        draw.text((380, 22),  str(conditions['total_rain'])   , font=font23,  fill=black)  # total_rain
-        draw.text((385, 263), ""                              , font=font23,  fill=black)  # event
+
+        #--------  bottom left box ------- 
+        draw.text((35, 330),  string_temp_max                 , font=font50,  fill=black)  # temp_max
+        draw.text((35, 395),  string_temp_min                 , font=font50,  fill=black)  # temp_min
 
         #--------  top right box ------- 
-        # supersede severe weather event text if needed
+        draw.text((380, 22),  string_total_rain               , font=font23,  fill=black)  # total_rain
+        draw.text((365, 35),  string_temp_current             , font=font160, fill=black)  # temp_current
+        draw.text((360, 195), string_feels_like               , font=font50,  fill=black)  # feels_like
+
+        # possible weather event text
         try:
              if conditions['event'] != None:
                 alert_image = Image.open(os.path.join(icondir, "warning.png"))
@@ -182,7 +215,7 @@ try:
         except NameError:
             print('No Severe Weather')
 
-        # feels_like icon
+        # feels_like icon if it is hot or cold
         difference = int(conditions['feels_like']) - int(conditions['temp_current'])
         if difference >= 5:
             feels_file = 'veryhot.png'
@@ -193,8 +226,12 @@ try:
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
 
-        #--------  bottom middle box -----
-        # icons
+        #--------  bottom middle box ------- 
+        draw.text((370, 330), string_humidity                 , font=font23,  fill=black)  # humidity
+        draw.text((370, 383), string_dewpt                    , font=font23,  fill=black)  # dewpt
+        draw.text((370, 435), string_wind                     , font=font23,  fill=black)  # wind
+        draw.text((385, 263), ""                              , font=font23,  fill=black)  # event
+
         rh_file = 'rh.png'
         rh_image = Image.open(os.path.join(icondir, rh_file))
         template.paste(rh_image, (320, 320))
@@ -211,22 +248,28 @@ try:
         if conditions['total_rain'] > 0 or conditions['total_rain'] == 1000:
             train_image = Image.open(os.path.join(icondir, "totalrain.png"))
             template.paste(train_image, (330, 15))
-            draw.text((380, 22), str(conditions['total_rain']), font=font23, fill=black)
+            draw.text((380, 22), string_total_rain, font=font23, fill=black)
 
         #--------  bottom right box ------- 
-        # bottom right box
-        if lightning:
+
+        # lightning info or by default the HH:MM last updated
+        if conditions['strikes'] is not None and int(conditions['strikes']) > 0:
             draw.text((695, 330), 'Strikes', font=font22, fill=white)
             draw.text((685, 400), 'Distance', font=font22, fill=white)
-            draw.text((683, 430), str(conditions['distance']), font=font20, fill=white)  # distance
-            draw.text((703, 360), str(conditions['strikes']), font=font20, fill=white)  # strikes
+            draw.text((683, 430), string_distance, font=font20, fill=white)  # distance
+            draw.text((703, 360), string_strikes, font=font20, fill=white)  # strikes
             strike_image = Image.open(os.path.join(icondir, "strike.png"))
             template.paste(strike_image, (605, 305))
         else:
             draw.text((627, 330), 'UPDATED', font=font35, fill=white)
             draw.text((627, 375), conditions['updated'], font = font60, fill=white)  # HH:MM
 
-        #-------- save the aggregate image ------
+        #------------------------------------------------------------------------
+        #---------------- overlay data onto the image ---------------------------
+        #----------------          done               ---------------------------
+        #------------------------------------------------------------------------
+
+        # save the aggregate image
         screen_output_file = os.path.join(tmpdir, 'screen_output.png')
         template.save(screen_output_file) # TODO: this should go to /tmp
 
