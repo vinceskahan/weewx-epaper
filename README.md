@@ -1,5 +1,9 @@
 <h1>Tempest E-paper Weather Display</h1>
 
+<p>
+Note: this branch has my mods to try to make this cool program more configurable and extensible.  The intent is to read a config.json file with all the configurable parameters, and to permit the user to "un-WeatherFlow-ize" and then "weewx-ize" it, so to speak.  The basic idea is to try to get this nice dashboard working on any station supported by weewx.  The 'how' is still under development but it is likey that we'll have weewx write out a current conditions data file from a custom skin .tmpl template file so that this app can simply read the data to cram into the epaper display.  Or not.  As I said, it's under development :-)
+<p>
+
 <hr>
 <h2> upstream readme follows </h2>
 <hr>

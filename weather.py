@@ -428,6 +428,14 @@ except KeyboardInterrupt:
 
 
 sys.exit(0)
+
+
+"""
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+
 #-----------------------------------------------------------
 
 # define function for displaying error
@@ -488,12 +496,6 @@ def get_nws_alerts():
     return string_event
 
 #-----------------------------------------------------------
-
-"""
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 
 # main() here
 
