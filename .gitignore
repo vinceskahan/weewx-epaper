@@ -1,6 +1,7 @@
 .DS_Store
 __pycache__
 config.json
+config.json.*
 lib/waveshare_epd/__pycache__
 pic/error.png
 pic/screen_output.png

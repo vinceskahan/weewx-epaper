@@ -1,11 +1,18 @@
-#-------------------------------------------------------
-# this is modified to use v4.0 of the waveshare libs
-# which is older than the ones we started with here
-#-------------------------------------------------------
+#-----------------------------------------------------------
+# minimal variant of weather.py to test screen compatibility
+# this just puts the template on the screen
+#
+# note: for the 2-color display this needs to use the older
+#       v4.0 version of the waveshare libs but the 3-color
+#       still uses the original upstream (later) library
+#
+# also: I renamed the hot/cold icons to be less iffy :-)
+#-----------------------------------------------------------
 
 # alphabetical order here so we can keep track
 import csv
 from   datetime import datetime
+import datetime
 from   io import BytesIO
 import json
 import os
@@ -17,9 +24,84 @@ import time
 import traceback
 import urllib.request
 
+# TODO: make sunrise/sunset method configurable
+# for calculating sunrise/sunset based on lat/lon
+from astral import LocationInfo
+from astral.sun import sun
+
+#---------------------------------------------------------------
+
+def convertToEpoch(dateTime):
+
+    """
+    convert a datetime.datetime.now() timestamp to epoch secs
+
+    input: 2024-10-24 07:42:12.032869-07:00
+    output: corresponding secs since the epoch
+    """
+    epoch = datetime.datetime(dateTime.year,dateTime.month,dateTime.day,dateTime.hour,dateTime.minute,dateTime.second).strftime('%s')
+    return epoch
+
+#---------------------------------------------------------------
+
+def getPeriodOfDay(current,sunrise,sunset):
+
+    """
+    get period of day from astral library rather
+    than relying on data in the observations
+    
+    this requires:
+        pip3 install astral --break-system-packages
+    or setting up and enabling a python venv
+    
+    tested on Raspberry Pi reference 2024-07-04
+    based on debian12 and using python 3.11.2
+    and astral 3.2 
+
+    input:  current time, sunrise, sunset in dateTime format
+            ala: 2024-10-24 07:42:12.032869-07:00
+    output: string of the period of the day
+
+    """
+
+    sunrise = convertToEpoch(s['sunrise'])
+    sunset  = convertToEpoch(s['sunset'])
+    current = convertToEpoch(current)
+
+    if myepoch < sunrise:
+        periodOfDay = "earlyMorning"
+    elif myepoch >= sunrise:
+        if myepoch < sunset:
+            periodOfDay = "day"
+        else:
+            periodOfDay = "night"
+    else:
+        periodOfDay = "unknown"
+
+    if config['debug']:
+        print("sunrise epoch = ", sunrise)
+        print("now     epoch = ", myepoch)
+        print("sunset  epoch = ", sunset)
+        print("periodOfDay   = ", periodOfDay)
+    else:
+        print('no reply')
+
+    return periodOfDay
+
+
 #-----------------------------------------------------------
 
 def read_config_file(CONFIG):
+
+    """
+    Read the program's JSON config file
+
+    input:  full pathname to read
+    output: a 'config' struct
+
+    """
+    print("reading config file", CONFIG)
+
     if not Path(CONFIG).is_file():
         print("ERROR - cannot find config file")
         sys.exit(1)
@@ -29,63 +111,28 @@ def read_config_file(CONFIG):
             file.close()
     return config
 
-#-----------------------------------------------------------
+#---------------------------------------------------------------
 
-# test function to get 'anything' to the screen
-def write_test_info(image, sleep_seconds):
-    print('writing test info to screen')
-    h_image = Image.new('1', (epd.width, epd.height), 255)
-
-    # Open the template
-    screen_output_file = Image.open(os.path.join(picdir, image))
-    # Initialize the drawing context with template as background
-    h_image.paste(screen_output_file, (0, 0))
-    epd.init()
-    epd.Clear()
-    epd.init_fast()
-    Himage = Image.new('1', (epd.width, epd.height), 255)  # 255: clear the frame
-    draw = ImageDraw.Draw(Himage)
-    draw.text((10, 0), 'hello world', font = font20, fill = 0)
-    draw.text((10, 20), '7.5inch e-Paper', font = font20, fill = 0)
-    draw.text((150, 0), u'微雪电子', font = font20, fill = 0)
-    draw.line((20, 50, 70, 100), fill = 0)
-    draw.line((70, 50, 20, 100), fill = 0)
-    draw.rectangle((20, 50, 70, 100), outline = 0)
-    draw.line((165, 50, 165, 100), fill = 0)
-    draw.line((140, 75, 190, 75), fill = 0)
-    draw.arc((140, 50, 190, 100), 0, 360, fill = 0)
-    draw.rectangle((80, 50, 130, 100), fill = 0)
-    draw.chord((200, 50, 250, 100), 0, 360, fill = 0)
-    epd.display(epd.getbuffer(Himage))
-    time.sleep(2)
-    epd.Clear()
-
-    epd.sleep()
-    print('sleeping for ' + str(sleep_seconds) + '.')
-    time.sleep(sleep_seconds)
-
-#-----------------------------------------------------------
-
-# define funciton for writing image and sleeping for 5 min.
 def write_to_screen(image, sleep_seconds):
-    print('Writing to screen.')
-    # Write to screen
-    h_image = Image.new('1', (epd.width, epd.height), 255)
+    """
+    Write a previously generated image to the screen
+    and sleep for a specified period
 
-    # Open the template
+    input: absolute path to the image, int(seconds)
+    output: nothing
+    """
+
+    print('Writing to screen.')
+    h_image = Image.new('1', (epd.width, epd.height), 255)
     screen_output_file = Image.open(os.path.join(picdir, image))
-    # Initialize the drawing context with template as background
     h_image.paste(screen_output_file, (0, 0))
     epd.init()
-
     if config['twocolor_display']:
         epd.display(epd.getbuffer(h_image))
     else:
-        h_red_image = Image.new('1', (epd.width, epd.height), 255)  # 250*122
+        h_red_image = Image.new('1', (epd.width, epd.height), 255)
         draw_red = ImageDraw.Draw(h_red_image)
-        epd.display(epd.getbuffer(h_image), epd.getbuffer(h_red_image)) #Comment/Remove from the comma on if using a 2 color screen
-
-    # Sleep
+        epd.display(epd.getbuffer(h_image), epd.getbuffer(h_red_image))
     time.sleep(2)
     epd.sleep()
 
@@ -93,6 +140,294 @@ def write_to_screen(image, sleep_seconds):
     print('Sleeping for ' + str(sleep_seconds) +'.')
     time.sleep(sleep_seconds)
 
+#---------------------------------------------------------------
+# main() here
+#---------------------------------------------------------------
+
+picdir  = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pic')
+icondir = os.path.join(picdir, 'icon')
+fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
+
+# write scratch files herre
+tmpdir  = "/tmp"
+
+# search lib folder for display driver modules
+sys.path.append('lib')
+
+# initialize some hashes used below
+conditions = {}
+config     = {}
+
+# read the config file
+config = read_config_file('config.json')
+print(config)
+
+###########################################################
+# temporary items in lieu of reading the config file
+###########################################################
+
+# hard set to two-color
+#config['twocolor_display'] = True
+
+# test data in lieu of getting actual data at this time
+conditions['baro']         = 30.23            # inHg
+conditions['dewpt']        = 54               # degF
+conditions['distance']     = "12 mi"          # NNN mi
+conditions['event']        = "Storm Warning"  # or None
+conditions['feels_like']   = 55               # degF
+conditions['humidity']     = 98               # pct
+conditions['precip_pct']   = 78               # pct
+conditions['rain_time']    = 34               # min
+conditions['strikes']      = 0                # (count) or None
+conditions['temp_current'] = 68.3             # degF
+conditions['temp_max']     = 72               # degF
+conditions['temp_min']     = 54               # degF
+conditions['total_rain']   = 2.2              # in
+conditions['updated']      = "12:34"          # HH:MM
+conditions['wind']         = 12.3             # mph
+conditions['windcardinal'] = "NNW"            # direction
+conditions['icon_code']    = "rainy"          # see the icons dir for a list
+conditions['description']  = "Rain Possible"  # TODO: placeholder here
+
+#------------------------------------------------------------------
+# icon codes with day/night and non-specific variants are:
+#   rainy sleet snow thunderstorm
+#
+# icon codes with day-night but no non-specific variant are:
+#   clear partly-cloudy possibly-rainy possibly-sleet possibly-snow possibly-thunderstorm
+#
+# misc icons are:
+#   barodown barosteady baroup
+#   cloudy foggy verycold veryhot windy
+#   dp precip rh strike totalrain warning wind
+#
+# this one can replace 'windy' with a meme
+#   windy-meme
+#
+###########################################################
+
+# use the correct module for the specified type of display
+if config['twocolor_display']:
+    from waveshare_epd import epd7in5_V2
+    epd = epd7in5_V2.EPD()
+else:
+    from waveshare_epd import epd7in5b_V2
+    epd = epd7in5b_V2.EPD()
+
+# Set the fonts
+font22 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 22)
+font20 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 20)
+font22 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 22)
+font23 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 23)
+font25 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 25)
+font30 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 30)
+font35 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 35)
+font50 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 50)
+font60 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 60)
+font100 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 100)
+font160 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 160)
+
+# Set the colors
+black = 'rgb(0,0,0)'
+white = 'rgb(255,255,255)'
+grey = 'rgb(235,235,235)'
+
+#Comment/Remove if using a 2 color screen
+#TODO - this doesn't seem to matter based on testing
+red  = 'rgb(255,0,0)'
+
+#------------ main -----------
+
+now      = datetime.datetime.now()
+loc      = LocationInfo(name='', region='', timezone=config['timezone'], latitude=config['latitude'], longitude=config['longitude'])
+myepoch  = convertToEpoch(now)
+s        = sun(loc.observer, date=datetime.date(now.year, now.month, now.day), tzinfo=loc.timezone)
+
+periodOfDay = getPeriodOfDay(now,s['sunrise'],s['sunset'])
+print(periodOfDay)
+
+if config['debug']:
+    print("-------------")
+    #print(loc)
+    #print(loc.observer)
+    print("current   :", now)
+    for key in ['sunrise', 'sunset']:
+        print(f'{key:10s}:', s[key])
+
+    print("-------------")
+
+#---------------------------------------------------------------
+
+# Initialize and clear screen
+print('Initializing and clearing screen.')
+epd.init()
+epd.Clear()
+
+#---------------------------------------------------------------
+
+# This is wrapped in a try/except block so we can catch
+# keyboard interrupts and cleanly init/clear/sleep the
+# display to try to prevent burn-in.  It is not perfect
+# but catches most of the ^C interrupts gracefully enough
+
+try:
+    while True:
+
+        template = Image.open(os.path.join(picdir, 'template.png'))
+        draw = ImageDraw.Draw(template)
+
+        # generate some strings with units and/or rounding as applicable
+        # TOODO: what if units are metric ?
+
+        string_temp_max = 'High: ' + format(conditions['temp_max'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_temp_min = 'Low:  ' + format(conditions['temp_min'], '.0f') +  u'\N{DEGREE SIGN}F'
+        
+        string_baro = str(conditions['baro']) +  ' in Hg'
+        string_precip_percent = 'Precip: ' + str(format(conditions['precip_pct'], '.0f'))  + '%'
+        string_feels_like = 'Feels like: ' + format(conditions['feels_like'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_temp_current = format(conditions['temp_current'], '.0f') + u'\N{DEGREE SIGN}F'
+        string_humidity = 'Humidity: ' + str(conditions['humidity']) + '%'
+        string_dewpt = 'Dew Point: ' + format(conditions['dewpt'], '.0f') +  u'\N{DEGREE SIGN}F'
+        string_wind = 'Wind: ' + format(conditions['wind'], '.1f') + ' MPH ' + conditions['windcardinal']
+        string_description = 'Now: ' + conditions['description']
+
+        # TODO: refactor this mess.....
+        if conditions['strikes'] is not None:
+            if int(conditions['strikes']) > 0:
+                string_strikes = str(conditions['strikes'])
+                string_distance = conditions['distance']
+
+        if conditions['event']:
+            string_event = conditions['event']
+        else:
+            string_event = ""
+
+        if conditions['total_rain'] < 1000:
+            string_total_rain = 'Total: ' + str(format(conditions['total_rain'], '.2f')) + ' in | Duration: ' + str(conditions['rain_time']) + ' min'
+        else:
+            string_total_rain = 'Total: Trace | Duration: ' + str(conditions['rain_time']) + ' min'
+            string_rain_time = str(conditions['rain_time']) + 'min'
+
+        #------------------------------------------------------------------------
+        #---------------- overlay data onto the image ---------------------------
+        #----------------           start             ---------------------------
+        #------------------------------------------------------------------------
+
+        #--------  top left box ------- 
+
+        icon_code = conditions['icon_code']
+        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('clear') or icon_code.startswith('partly'):
+            icon_file = icon_code + '.png'
+        elif periodOfDay == "day":
+            icon_file = icon_code + '-day.png'
+        else:
+            icon_file = icon_code + '-night.png'
+
+        print("icon_file is ", icon_file)
+        icon_image = Image.open(os.path.join(icondir, icon_file))
+        template.paste(icon_image, (40, 15))
+        draw.text((15, 183), string_description, font=font22, fill=black)
+
+        draw.text((65, 223),  string_baro                     , font=font22,  fill=black)  # baro
+        draw.text((65, 263),  string_precip_percent           , font=font22,  fill=black)  # precip_pct
+
+        #--------  bottom left box ------- 
+        draw.text((35, 330),  string_temp_max                 , font=font50,  fill=black)  # temp_max
+        draw.text((35, 395),  string_temp_min                 , font=font50,  fill=black)  # temp_min
+
+        #--------  top right box ------- 
+        draw.text((380, 22),  string_total_rain               , font=font23,  fill=black)  # total_rain
+        draw.text((365, 35),  string_temp_current             , font=font160, fill=black)  # temp_current
+        draw.text((360, 195), string_feels_like               , font=font50,  fill=black)  # feels_like
+
+        # possible weather event text
+        try:
+             if conditions['event'] != None:
+                alert_image = Image.open(os.path.join(icondir, "warning.png"))
+                template.paste(alert_image, (335, 255))
+                draw.text((385, 263), str(conditions['event']) , font=font23, fill=black)
+        except NameError:
+            print('No Severe Weather')
+
+        # feels_like icon if it is hot or cold
+        difference = int(conditions['feels_like']) - int(conditions['temp_current'])
+        if difference >= 5:
+            feels_file = 'veryhot.png'
+            feels_image = Image.open(os.path.join(icondir, feels_file))
+            template.paste(feels_image, (720, 196))
+        if difference <= -5:
+            feels_file = 'verycold.png'
+            feels_image = Image.open(os.path.join(icondir, feels_file))
+            template.paste(feels_image, (720, 196))
+
+        #--------  bottom middle box ------- 
+        draw.text((370, 330), string_humidity                 , font=font23,  fill=black)  # humidity
+        draw.text((370, 383), string_dewpt                    , font=font23,  fill=black)  # dewpt
+        draw.text((370, 435), string_wind                     , font=font23,  fill=black)  # wind
+        draw.text((385, 263), ""                              , font=font23,  fill=black)  # event
+
+        rh_file = 'rh.png'
+        rh_image = Image.open(os.path.join(icondir, rh_file))
+        template.paste(rh_image, (320, 320))
+
+        dp_file = 'dp.png'
+        dp_image = Image.open(os.path.join(icondir, dp_file))
+        template.paste(dp_image, (320, 373))
+
+        wind_file = 'wind.png'
+        wind_image = Image.open(os.path.join(icondir, wind_file))
+        template.paste(wind_image, (320, 425))
+
+        # total_rain only if we have rain
+        if conditions['total_rain'] > 0 or conditions['total_rain'] == 1000:
+            train_image = Image.open(os.path.join(icondir, "totalrain.png"))
+            template.paste(train_image, (330, 15))
+            draw.text((380, 22), string_total_rain, font=font23, fill=black)
+
+        #--------  bottom right box ------- 
+
+        # lightning info or by default the HH:MM last updated
+        if conditions['strikes'] is not None and int(conditions['strikes']) > 0:
+            draw.text((695, 330), 'Strikes', font=font22, fill=white)
+            draw.text((685, 400), 'Distance', font=font22, fill=white)
+            draw.text((683, 430), string_distance, font=font20, fill=white)  # distance
+            draw.text((703, 360), string_strikes, font=font20, fill=white)  # strikes
+            strike_image = Image.open(os.path.join(icondir, "strike.png"))
+            template.paste(strike_image, (605, 305))
+        else:
+            draw.text((627, 330), 'UPDATED', font=font35, fill=white)
+            draw.text((627, 375), conditions['updated'], font = font60, fill=white)  # HH:MM
+
+        #------------------------------------------------------------------------
+        #---------------- overlay data onto the image ---------------------------
+        #----------------          done               ---------------------------
+        #------------------------------------------------------------------------
+
+        # save the aggregate image
+        screen_output_file = os.path.join(tmpdir, 'screen_output.png')
+        template.save(screen_output_file) # TODO: this should go to /tmp
+
+        # Close the template file
+        template.close()
+
+        # write generated output file to screen
+        write_to_screen(screen_output_file, 300)
+
+except KeyboardInterrupt:
+    print()
+    print()
+    print("#-----------------------------------")
+    print("#       exiting on control-c        ")
+    print("#    (this takes a few seconds)     ")
+    epd.init()
+    epd.Clear()
+    epd.sleep()
+    print("#          done                     ")
+    print("#-----------------------------------")
+    print()
+
+
+sys.exit(0)
 #-----------------------------------------------------------
 
 # define function for displaying error
@@ -120,7 +455,13 @@ def display_error(error_source):
 #-----------------------------------------------------------
 
 def get_nws_alerts():
-    # Get Severe weather data from NWS
+    """
+    Get Severe weather data from NWS
+    
+    input:  nothing
+    output: string 'string_event'
+
+    """
     if config['debug'] == "True":
         print("trying to get weather alerts")
     if config['debug_nws'] == "True":
@@ -147,21 +488,26 @@ def get_nws_alerts():
     return string_event
 
 #-----------------------------------------------------------
+
+"""
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+
 # main() here
-#-----------------------------------------------------------
 
 config = read_config_file('config.json')
-
-picdir  = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pic')
-icondir = os.path.join(picdir, 'icon')
-fontdir = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'font')
-
 # assemble some url we will use below
 if config['data_source'] == "WeatherFlow":
     current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + config['station_id'] \
                         + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + config['api_token']
+elif config['data_source'] == "url":
+    current_conditions_url = config['data_url']
 else:
-    current_conditions_url = ""
+    current_conditions_url = None
+    print("current_conditions_url not defined - exiting")
+    sys.exit(1)
 
 #------ how to get NWS forecasts ----
 #
@@ -208,382 +554,15 @@ else:
 # Tampa is FLZ151
 #alerts_url = "https://api.weather.gov/alerts/active?zone=" + "FLZ151"
 
-# search lib folder for display driver modules
-sys.path.append('lib')
+# initialize some hashes used below
+conditions={}
+config = {}
 
-# use the correct module for the specified type of display
-if config['twocolor_display']:
-    from waveshare_epd import epd7in5_V2
-    epd = epd7in5_V2.EPD()
-else:
-    from waveshare_epd import epd7in5b_V2
-    epd = epd7in5b_V2.EPD()
-
-# Set the fonts
-font20 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 20)
-font22 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 22)
-font23 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 23)
-font25 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 25)
-font30 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 30)
-font35 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 35)
-font50 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 50)
-font60 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 60)
-font100 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 100)
-font160 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 160)
-
-# Set the colors
-black = 'rgb(0,0,0)'
-white = 'rgb(255,255,255)'
-grey = 'rgb(235,235,235)'
-
-#Comment/Remove if using a 2 color screen
-#TODO - this doesn't seem to matter based on testing
-red  = 'rgb(255,0,0)'
-
-#-----------------------------------------------------------
-
-# Initialize and clear screen
-print('Initializing and clearing screen.')
-epd.init()
-epd.Clear()
-
-#-----------------------------------------------------------
-
-# This is wrapped in a try/except block so we can catch
-# keyboard interrupts and cleanly init/clear/sleep the
-# display to try to prevent burn-in.  It is not perfect
-# but catches most of the ^C interrupts gracefully enough
-
-try:
-    while True:
-
-        #--------------------------------
-        # get and decode any NWS alerts
-        #--------------------------------
-
-        if config['alerts_source'] == "NWS":
-            string_event = get_nws_alerts()
-        else:
-            string_event = ""
-
-        #--------------------------------
-        # connect to the Tempest WX API
-        #--------------------------------
-
-        #TODO: this should be a connect_to_weatherflow() routine
-        # Ensure there are no errors with connection
-        error_connect = True
-        while error_connect == True:
-
-            if config['data_source'] == "WeatherFlow":
-                try:
-                    # HTTP request
-                    print('Attempting to connect to Tempest WX.')
-                    response = requests.get(current_conditions_url)
-                    print('Connection to Tempest WX successful.')
-                    error_connect = None
-                except:
-                    # Call function to display connection error
-                    print('Connection error.')
-                    display_error('CONNECTION')
-                    time.sleep(2)                 # don't bang on the remote server too much
-            else:
-                print("data_source unconfigured")
-                display_error("DATA_SOURCE UNCONFIGURED")
-                #TODO: this should exit and clear rather than loop infinitely, which it currently does....
-
-        #--------------------------------
-        # get Tempest WX current conditions
-        #--------------------------------
-
-        # TODO: this should be a decode_weatherflow_data() routine called in the happy path above
-        error = None
-        while error == None:
-            # Check status of code request
-            if response.status_code == 200:
-                print('JSON pull from Tempest WX successful.')
-                # get data in json format
-                f = urllib.request.urlopen(current_conditions_url)
-                wxdata = json.load(f)
-                f.close()
-
-                # get current conditions
-                try:
-                    current = wxdata['current_conditions']
-                except:
-                    #TODO: should this display_error ?
-                    print("no current conditions - exiting...")
-                    sys.exit(0)
-
-                # test data only - screen uses only 1,2,3,4,5,6,8,10,12,13,20 and icon and 9
-                # current = { 
-     #          #       'air_temperature': 1,
-     #          #       'feels_like': 2,
-     #          #       'relative_humidity': 3,
-     #          #       'dew_point': 4,
-     #          #       'wind_avg': 5,
-     #          #       'wind_direction_cardinal': '6' ,
-     #unused    #       'wind_gust': 7,
-     #          #       'conditions': '8',
-     #          #       'report': '9',
-     #          #       'sea_level_pressure': 10,
-     #unused    #       'pressure_trend': 11,
-     #          #       'icon': "rainy",
-                #       'lightning_strike_count_last_3hr': 12,
-                #       'lightning_strike_last_distance_msg': "13 miles",
-                #       'daily': 14,
-                #       'daily_precip_percent': 15,
-                #       'total_rain': 16,
-                #       'rain_time': 17,
-                #       'daily_temp': 18,
-                #       'temp_max': 19,
-     #          #       'temp_min': 20,
-                #       'sunrise': 21,
-                #       'sunset': 22,
-                #   }
+# we'd also read the config file here.....
 
 
-                # actual queried data from API for a station with no actual sensor
-                #
-                # print(current)
-                #
-                # {'air_density': 1.21, 'air_temperature': 58.0, 'conditions': 'Cloudy', 'delta_t': 2.0, 
-                #  'dew_point': 55.0, 'feels_like': 58.0, 'icon': 'cloudy', 'is_precip_local_day_rain_check': False, 
-                #  'pressure_trend': 'steady', 'relative_humidity': 89, 'sea_level_pressure': 29.967, 'solar_radiation': 270, 
-                #  'station_pressure': 29.628, 'time': 1728412200, 'uv': 1, 'wet_bulb_globe_temperature': 58.0, 
-                #  'wet_bulb_temperature': 56.0, 'wind_avg': 7.0, 'wind_direction': 199, 'wind_direction_cardinal': 'SSW', 'wind_gust': 13.0}
-
-
-                #--------------------------------
-                # decode the current conditions
-                #--------------------------------
-
-                # TODO: this should be a decode_current_conditions(current) routine
-                # TODO: should each element be in a try/except block just.in.case. ?
-                temp_current = current['air_temperature']
-                feels_like   = current['feels_like']
-                humidity     = current['relative_humidity']
-                dewpt        = current['dew_point']
-                wind         = current['wind_avg']
-                windcard     = current['wind_direction_cardinal']
-                gust         = current['wind_gust']
-                weather      = current['conditions']
-                report       = current['conditions']
-                if report == 'Thunderstorms Possible':
-                    report = 'T-Storms Possible'
-                baro         = current['sea_level_pressure']
-                trend        = current['pressure_trend']
-                # get icon url - manually override for wind > 10mph
-                icon_code    = current['icon']
-                if icon_code != 'thunderstorm' and icon_code != 'snow' and icon_code != 'sleet' and icon_code != 'rainy' and gust >= 10:
-                    icon_code = 'windy'
-                else:
-                    icon_code = current['icon']
-                try:
-                    strikesraw = current['lightning_strike_count_last_3hr']
-                except:
-                    strikesraw = 0
-                strikes       = f"{strikesraw:,}"
-
-                # Lightning distance message
-                try:
-                    lightningdist = current['lightning_strike_last_distance_msg']
-                except:
-                    lightningdist = 0
-
-                # TODO: should be in a get_forecast() routine
-                # get daily forcast for today
-                daily = wxdata['forecast']['daily'][0]      # this is the WF forecast
-                temp_max     = daily['air_temp_high']
-                temp_min     = daily['air_temp_low']
-                sunriseepoch = daily['sunrise']
-                sunsetepoch  = daily['sunset']
-                daily_precip_percent = daily['precip_probability']
-
-                # actual rain
-                try:
-                    total_rain = current['precip_accum_local_day']
-                except:
-                    total_rain = 0
-                try:
-                    rain_time = current['precip_minutes_local_day']
-                except:
-                    rain_time = 0
-                if rain_time > 0 and total_rain <= 0:
-                    total_rain = 1000
-
-                # current and daily min and max temp
-                # TODO: this should be renamed to current_temp or the like
-                daily_temp   = current['air_temperature']
-
-                # convert epoch to readable time
-                sunrise = datetime.fromtimestamp(sunriseepoch)
-                sunset  = datetime.fromtimestamp(sunsetepoch)
-
-                #--------------------------------
-                # generate strings to display
-                #--------------------------------
-
-                string_temp_current = format(temp_current, '.0f') + u'\N{DEGREE SIGN}F'
-                string_feels_like     = 'Feels like: ' + format(feels_like, '.0f') +  u'\N{DEGREE SIGN}F'
-                string_humidity       = 'Humidity: ' + str(humidity) + '%'
-                string_dewpt          = 'Dew Point: ' + format(dewpt, '.0f') +  u'\N{DEGREE SIGN}F'
-                string_wind           = 'Wind: ' + format(wind, '.1f') + ' MPH ' + windcard
-                #string_windcard = windcard 
-                string_report         = 'Now: ' + report.title()
-                string_baro           = str(baro) + ' inHg'
-                string_temp_max       = 'High: ' + format(temp_max, '>.0f') + u'\N{DEGREE SIGN}F'
-                string_temp_min       = 'Low:  ' + format(temp_min, '>.0f') + u'\N{DEGREE SIGN}F'
-                string_precip_percent = 'Precip: ' + str(format(daily_precip_percent, '.0f'))  + '%'
-                if total_rain < 1000:
-                    string_total_rain = 'Total: ' + str(format(total_rain, '.2f')) + ' in | Duration: ' + str(rain_time) + ' min'
-                else:
-                    string_total_rain = 'Total: Trace | Duration: ' + str(rain_time) + ' min'
-                string_rain_time      = str(rain_time) + 'min'
-
-                # Set error code to false to break out of this while loop
-                error = False
-
-            else:
-                # Call function to display HTTP error
-                display_error('HTTP')
-                # TODO: shouldn't we sleep before trying again ?
-
-
-        #------------------------------
-
-        # at this point we've gotten Tempest WX current conditions
-        # and the NWS alert information, so assemble the graphical
-        # elements to display to the screen
-
-        # TODO: this should be a generate_display_elements() routine
-
-        # Open template file and initialize the drawing context
-        #    with the template as background
-        template = Image.open(os.path.join(picdir, 'template.png'))
-        draw = ImageDraw.Draw(template)
-
-        # ----- Draw top left box
-        #Logic for nighttime....DAYTIME
-        nowcheck = datetime.now()
-        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('clear') or icon_code.startswith('partly'):
-            icon_file = icon_code + '.png'
-        elif nowcheck >= sunrise and nowcheck < sunset:
-            icon_file = icon_code + '-day.png'
-        else:
-            icon_file = icon_code + '-night.png'
-        icon_image = Image.open(os.path.join(icondir, icon_file))
-        template.paste(icon_image, (40, 15))
-        ## Place a black rectangle outline
-        #draw.rectangle((25, 20, 225, 180), outline=black)
-        draw.text((15, 183), string_report, font=font22, fill=black) #15, 190
-        #Barometer trend logic block
-        if trend == 'falling':
-            baro_file = 'barodown.png'
-        elif trend == 'steady':
-            baro_file = 'barosteady.png'
-        else: #trend == 'rising':
-            baro_file = 'baroup.png'
-        baro_image = Image.open(os.path.join(icondir, baro_file))
-        template.paste(baro_image, (15, 213)) #15, 218
-        draw.text((65, 223), string_baro, font=font22, fill=black) #65,228
-        precip_file = 'precip.png'
-        precip_image = Image.open(os.path.join(icondir, precip_file))
-        template.paste(precip_image, (15, 255)) #15, 260
-        draw.text((65, 263), string_precip_percent, font=font22, fill=black) #65, 268
-
-        # ----- Draw top right box 
-        draw.text((365, 35), string_temp_current, font=font160, fill=black) #375,35
-        draw.text((360, 195), string_feels_like, font=font50, fill=black) #350,210
-        difference = int(feels_like) - int(temp_current)
-        if difference >= 5:
-            feels_file = 'veryhot.png'
-            feels_image = Image.open(os.path.join(icondir, feels_file))
-            template.paste(feels_image, (720, 196))
-        if difference <= -5:
-            feels_file = 'verycold.png'
-            feels_image = Image.open(os.path.join(icondir, feels_file))
-            template.paste(feels_image, (720, 196))
-
-        # ----- Draw bottom left box
-        draw.text((35, 330), string_temp_max, font=font50, fill=black) #35,325
-        draw.line((170, 390, 265, 390), fill=black, width=4)
-        draw.text((35, 395), string_temp_min, font=font50, fill=black) #35,390
-
-        # ----- Draw bottom middle box
-        rh_file = 'rh.png'
-        rh_image = Image.open(os.path.join(icondir, rh_file))
-        template.paste(rh_image, (320, 320))
-        draw.text((370, 330), string_humidity, font=font23, fill=black) #345, 340
-        dp_file = 'dp.png'
-        dp_image = Image.open(os.path.join(icondir, dp_file))
-        template.paste(dp_image, (320, 373))
-        draw.text((370, 383), string_dewpt, font=font23, fill=black)
-        wind_file = 'wind.png'
-        wind_image = Image.open(os.path.join(icondir, wind_file))
-        template.paste(wind_image, (320, 425))
-        draw.text((370, 435), string_wind, font=font23, fill=black) #345, 400
-        #draw.text((535, 435), string_windcard, font=font23, fill=black)
-
-        # ----- Draw bottom right box
-        #Lightning mod - this puts lightning info bottom right on the screen
-        #### strikesraw = 10; strikes = "12" ; lightningdist = "10 miles"   # vdsdebug
-        if strikesraw >= 1:
-            strike_file = 'strike.png'
-            strike_image = Image.open(os.path.join(icondir, strike_file))
-            template.paste(strike_image, (605, 305))
-            draw.text((695, 330), 'Strikes', font=font22, fill=white)
-            draw.line((690, 355, 765, 355), fill =white, width=3)
-            draw.text((703, 360), strikes, font=font20, fill=white)
-            draw.text((685, 400), 'Distance', font=font22, fill=white)
-            draw.line((680, 425, 773, 425), fill =white, width=3)
-            draw.text((683, 430), lightningdist, font=font20, fill=white)
-        else:
-            draw.text((627, 330), 'UPDATED', font=font35, fill=white)
-            current_time = datetime.now().strftime('%H:%M')
-            draw.text((627, 375), current_time, font = font60, fill=white)
-
-        #Precipitaton mod - this puts total rain and duration time on top of temperature
-        if total_rain > 0 or total_rain == 1000:
-            train_file = 'totalrain.png'
-            train_image = Image.open(os.path.join(icondir, train_file))
-            template.paste(train_image, (330, 15))
-            draw.text((380, 22), string_total_rain, font=font23, fill=black)
-
-        #Severe Weather Mod - this puts the alert text below feels like
-        # string_event = "foo bar" # vdsdebug
-        try:
-             if string_event != None:
-                alert_file = 'warning.png'
-                alert_image = Image.open(os.path.join(icondir, alert_file))
-                template.paste(alert_image, (335, 255))
-                draw.text((385, 263), string_event, font=font23, fill=black)
-        except NameError:
-            print('No Severe Weather')
-
-        # Save the image for display as PN
-        screen_output_file = os.path.join(picdir, 'screen_output.png')
-        template.save(screen_output_file) # TODO: this should go to /tmp
-
-        # Close the template file
-        template.close()
-
-        # Write to screen
-        if config['debug_screen'] == "True":
-            print("  debug_screen is ..." , debug_screen)
-            write_test_info(screen_output_file, 300)
-        else:
-            write_to_screen(screen_output_file, 300)
-
-except KeyboardInterrupt:
-    print()
-    print()
-    print("#-----------------------------------")
-    print("#       exiting on control-c        ")
-    print("#    (this takes a few seconds)     ")
-    epd.init()
-    epd.Clear()
-    epd.sleep()
-    print("#          done                     ")
-    print("#-----------------------------------")
-    print()
+----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+"""
