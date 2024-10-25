@@ -24,11 +24,6 @@ import time
 import traceback
 import urllib.request
 
-# TODO: make sunrise/sunset method configurable
-# for calculating sunrise/sunset based on lat/lon
-from astral import LocationInfo
-from astral.sun import sun
-
 #---------------------------------------------------------------
 
 def convertToEpoch(dateTime):
@@ -64,8 +59,8 @@ def getPeriodOfDay(current,sunrise,sunset):
 
     """
 
-    sunrise = convertToEpoch(s['sunrise'])
-    sunset  = convertToEpoch(s['sunset'])
+    sunrise = convertToEpoch(sunrise)
+    sunset  = convertToEpoch(sunset)
     current = convertToEpoch(current)
 
     if myepoch < sunrise:
@@ -87,7 +82,6 @@ def getPeriodOfDay(current,sunrise,sunset):
         print('no reply')
 
     return periodOfDay
-
 
 #-----------------------------------------------------------
 
@@ -204,6 +198,7 @@ conditions['description']  = "Rain Possible"  # TODO: placeholder here
 # this one can replace 'windy' with a meme
 #   windy-meme
 #
+# see the 'docs' directory for a screen shot of the icons
 ###########################################################
 
 # use the correct module for the specified type of display
@@ -238,23 +233,29 @@ red  = 'rgb(255,0,0)'
 
 #------------ main -----------
 
+periodOfDay = None   # initialize
 now      = datetime.datetime.now()
-loc      = LocationInfo(name='', region='', timezone=config['timezone'], latitude=config['latitude'], longitude=config['longitude'])
-myepoch  = convertToEpoch(now)
-s        = sun(loc.observer, date=datetime.date(now.year, now.month, now.day), tzinfo=loc.timezone)
 
-periodOfDay = getPeriodOfDay(now,s['sunrise'],s['sunset'])
-print(periodOfDay)
+# where to get sunrise/sunset is configurable
+#   - if set to 'astral' the astral python library is needed as a corequisite
 
-if config['debug']:
-    print("-------------")
-    #print(loc)
-    #print(loc.observer)
-    print("current   :", now)
-    for key in ['sunrise', 'sunset']:
+if config['sunrise_sunset'] == "astral":
+    from astral import LocationInfo
+    from astral.sun import sun
+    loc      = LocationInfo(name='', region='', timezone=config['timezone'], latitude=config['latitude'], longitude=config['longitude'])
+    myepoch  = convertToEpoch(now)
+    s        = sun(loc.observer, date=datetime.date(now.year, now.month, now.day), tzinfo=loc.timezone)
+    periodOfDay = getPeriodOfDay(now,s['sunrise'],s['sunset'])
+    print(periodOfDay)
+    if config['debug']:
+        print("-------------")
+        #print(loc)
+        #print(loc.observer)
+        print("current   :", now)
+        for key in ['sunrise', 'sunset']:
         print(f'{key:10s}:', s[key])
-
-    print("-------------")
+        print("-------------")
+# TODO: else - future - get this from WF current conditions
 
 #---------------------------------------------------------------
 
@@ -318,10 +319,13 @@ try:
         icon_code = conditions['icon_code']
         if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('clear') or icon_code.startswith('partly'):
             icon_file = icon_code + '.png'
-        elif periodOfDay == "day":
-            icon_file = icon_code + '-day.png'
+        elif periodOfDay != None:
+            if periodOfDay == "day":
+                icon_file = icon_code + '-day.png'
+            else:
+                icon_file = icon_code + '-night.png'
         else:
-            icon_file = icon_code + '-night.png'
+            icon_file = icon_code + '.png'
 
         print("icon_file is ", icon_file)
         icon_image = Image.open(os.path.join(icondir, icon_file))
@@ -428,14 +432,6 @@ except KeyboardInterrupt:
 
 
 sys.exit(0)
-
-
-"""
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
------------ BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
-
 #-----------------------------------------------------------
 
 # define function for displaying error
@@ -496,6 +492,12 @@ def get_nws_alerts():
     return string_event
 
 #-----------------------------------------------------------
+
+"""
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 
 # main() here
 

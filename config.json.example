@@ -7,6 +7,7 @@
     "alerts_zone"      : "FLZ050" ,
     "latitude"         : "47.31",
     "longitude"        : "-122.36",
+    "sunrise_sunset"   : "astral",
     "timezone"         : "America/Los_Angeles" ,
     "twocolor_display" : "1" ,
     "debug"            : "False" ,
@@ -33,7 +34,12 @@
 #
 # About these settings...
 #  data_source = WeatherFlow requires station_id and api_token
-#  data_source = url requires data_url
+#  data_source = url requires data_url to query JSON data from (weewx)
+#
+#  alerts_source = NWS requires alerts_zone
+#
+#  sunrise_sunset = astral requires latitude, longitude, timezone
+#                   and the astral python library must be installed
 #
 #-----------------------------------------------------------------------
 
