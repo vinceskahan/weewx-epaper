@@ -34,6 +34,12 @@ def convertToEpoch(dateTime):
     input: 2024-10-24 07:42:12.032869-07:00
     output: corresponding secs since the epoch
     """
+
+    #TODO: if dateTime is not a datetime object convert it to one here
+    print("----in convertToEpoch---")
+    print(type(dateTime))
+    print(dateTime)
+
     epoch = datetime.datetime(dateTime.year,dateTime.month,dateTime.day,dateTime.hour,dateTime.minute,dateTime.second).strftime('%s')
     return epoch
 
@@ -59,19 +65,18 @@ def getPeriodOfDay(current,sunrise,sunset):
 
     """
 
+    print("----in getPeriodOfDay---")
+    print(type(current),type(sunrise),type(sunset))
+
+    #sunrise = convertToEpoch(s['sunrise'])
+    #sunset  = convertToEpoch(s['sunset'])
     sunrise = convertToEpoch(sunrise)
     sunset  = convertToEpoch(sunset)
     current = convertToEpoch(current)
 
-    if myepoch < sunrise:
-        periodOfDay = "earlyMorning"
-    elif myepoch >= sunrise:
-        if myepoch < sunset:
-            periodOfDay = "day"
-        else:
-            periodOfDay = "night"
-    else:
-        periodOfDay = "unknown"
+    periodOfDay = "night"
+    if myepoch >= sunrise and myepoch <= sunset:
+        periodOfDay = "day"
 
     if config['debug']:
         print("sunrise epoch = ", sunrise)
@@ -82,6 +87,7 @@ def getPeriodOfDay(current,sunrise,sunset):
         print('no reply')
 
     return periodOfDay
+
 
 #-----------------------------------------------------------
 
@@ -180,7 +186,7 @@ conditions['total_rain']   = 2.2              # in
 conditions['updated']      = "12:34"          # HH:MM
 conditions['wind']         = 12.3             # mph
 conditions['windcardinal'] = "NNW"            # direction
-conditions['icon_code']    = "rainy"          # see the icons dir for a list
+conditions['icon_code']    = "cloudy"         # see the icons dir for a list
 conditions['description']  = "Rain Possible"  # TODO: placeholder here
 
 #------------------------------------------------------------------
@@ -188,7 +194,10 @@ conditions['description']  = "Rain Possible"  # TODO: placeholder here
 #   rainy sleet snow thunderstorm
 #
 # icon codes with day-night but no non-specific variant are:
-#   clear partly-cloudy possibly-rainy possibly-sleet possibly-snow possibly-thunderstorm
+#   clear partly-cloudy possibly-rainy possibly-sleet 
+#         possibly-snow possibly-thunderstorm
+#
+# TODO: should be a cloudy (only) icon
 #
 # misc icons are:
 #   barodown barosteady baroup
@@ -198,7 +207,6 @@ conditions['description']  = "Rain Possible"  # TODO: placeholder here
 # this one can replace 'windy' with a meme
 #   windy-meme
 #
-# see the 'docs' directory for a screen shot of the icons
 ###########################################################
 
 # use the correct module for the specified type of display
@@ -210,7 +218,6 @@ else:
     epd = epd7in5b_V2.EPD()
 
 # Set the fonts
-font22 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 22)
 font20 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 20)
 font22 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 22)
 font23 = ImageFont.truetype(os.path.join(fontdir, 'Font.ttc'), 23)
@@ -234,28 +241,35 @@ red  = 'rgb(255,0,0)'
 #------------ main -----------
 
 periodOfDay = None   # initialize
-now      = datetime.datetime.now()
 
-# where to get sunrise/sunset is configurable
-#   - if set to 'astral' the astral python library is needed as a corequisite
+now = datetime.datetime.now()
+
+# debug - force time to night using some time and date object lunacy
+#    ref: https://stackoverflow.com/questions/71323493/how-to-convert-time-object-to-datetime-object-in-python/71323494
+#tmpnow   ="2024-10-29 02:11:23"
+#timenow = time.strptime(tmpnow, '%Y-%m-%d %H:%M:%S')
+#now     = datetime.datetime(*timenow[:5])
 
 if config['sunrise_sunset'] == "astral":
+    print('using astral')
     from astral import LocationInfo
     from astral.sun import sun
     loc      = LocationInfo(name='', region='', timezone=config['timezone'], latitude=config['latitude'], longitude=config['longitude'])
     myepoch  = convertToEpoch(now)
     s        = sun(loc.observer, date=datetime.date(now.year, now.month, now.day), tzinfo=loc.timezone)
     periodOfDay = getPeriodOfDay(now,s['sunrise'],s['sunset'])
-    print(periodOfDay)
-    if config['debug']:
+    if config['sunrise_sunset'] == "astral":
         print("-------------")
         #print(loc)
         #print(loc.observer)
         print("current   :", now)
         for key in ['sunrise', 'sunset']:
-        print(f'{key:10s}:', s[key])
+            print(f'{key:10s}:', s[key])
         print("-------------")
-# TODO: else - future - get this from WF current conditions
+else:
+    pass   # TODO: grab sunrise/sunset from WF data ? from weewx skin ?
+
+print(periodOfDay)
 
 #---------------------------------------------------------------
 
@@ -317,7 +331,8 @@ try:
         #--------  top left box ------- 
 
         icon_code = conditions['icon_code']
-        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('clear') or icon_code.startswith('partly'):
+        print("----- icon code = ", icon_code)
+        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('partly'):
             icon_file = icon_code + '.png'
         elif periodOfDay != None:
             if periodOfDay == "day":
