@@ -1,6 +1,8 @@
 
 ## How to determine your NWS forecast zone 
 
+Ref: https://www.weather.gov/documentation/services-web-api
+
 This example assumes your lat = 47.00 and lon = -122.00....
 
 

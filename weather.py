@@ -1,12 +1,27 @@
 #-----------------------------------------------------------
-# minimal variant of weather.py to test screen compatibility
-# this just puts the template on the screen
-#
 # note: for the 2-color display this needs to use the older
 #       v4.0 version of the waveshare libs but the 3-color
 #       still uses the original upstream (later) library
 #
 # also: I renamed the hot/cold icons to be less iffy :-)
+#
+# TODO: this does a full refresh.  Support incremental for gusts ?
+#
+# For icon codes, these are the possibilities....
+#     icon codes with day/night and non-specific variants are:
+#       rainy sleet snow thunderstorm
+#
+#     icon codes with day-night but no non-specific variant are:
+#       clear partly-cloudy possibly-rainy possibly-sleet 
+#         possibly-snow possibly-thunderstorm
+#
+#     misc icons are:
+#       barodown barosteady baroup
+#       cloudy foggy verycold veryhot windy
+#       dp precip rh strike totalrain warning wind
+#
+#     this one can replace 'windy' with a meme
+#       windy-meme
 #-----------------------------------------------------------
 
 # alphabetical order here so we can keep track
@@ -35,59 +50,8 @@ def convertToEpoch(dateTime):
     output: corresponding secs since the epoch
     """
 
-    #TODO: if dateTime is not a datetime object convert it to one here
-    print("----in convertToEpoch---")
-    print(type(dateTime))
-    print(dateTime)
-
     epoch = datetime.datetime(dateTime.year,dateTime.month,dateTime.day,dateTime.hour,dateTime.minute,dateTime.second).strftime('%s')
     return epoch
-
-#---------------------------------------------------------------
-
-def getPeriodOfDay(current,sunrise,sunset):
-
-    """
-    get period of day from astral library rather
-    than relying on data in the observations
-    
-    this requires:
-        pip3 install astral --break-system-packages
-    or setting up and enabling a python venv
-    
-    tested on Raspberry Pi reference 2024-07-04
-    based on debian12 and using python 3.11.2
-    and astral 3.2 
-
-    input:  current time, sunrise, sunset in dateTime format
-            ala: 2024-10-24 07:42:12.032869-07:00
-    output: string of the period of the day
-
-    """
-
-    print("----in getPeriodOfDay---")
-    print(type(current),type(sunrise),type(sunset))
-
-    #sunrise = convertToEpoch(s['sunrise'])
-    #sunset  = convertToEpoch(s['sunset'])
-    sunrise = convertToEpoch(sunrise)
-    sunset  = convertToEpoch(sunset)
-    current = convertToEpoch(current)
-
-    periodOfDay = "night"
-    if myepoch >= sunrise and myepoch <= sunset:
-        periodOfDay = "day"
-
-    if config['debug']:
-        print("sunrise epoch = ", sunrise)
-        print("now     epoch = ", myepoch)
-        print("sunset  epoch = ", sunset)
-        print("periodOfDay   = ", periodOfDay)
-    else:
-        print('no reply')
-
-    return periodOfDay
-
 
 #-----------------------------------------------------------
 
@@ -100,8 +64,6 @@ def read_config_file(CONFIG):
     output: a 'config' struct
 
     """
-    print("reading config file", CONFIG)
-
     if not Path(CONFIG).is_file():
         print("ERROR - cannot find config file")
         sys.exit(1)
@@ -141,6 +103,157 @@ def write_to_screen(image, sleep_seconds):
     time.sleep(sleep_seconds)
 
 #---------------------------------------------------------------
+
+def getWeewxConditions(conditions,units):
+
+    '''
+    get WeeWX weather conditions from the configured data_url
+
+    input:  empty conditions and units hashes
+    output: filled in hashes
+
+    '''
+
+    #TODO: need this in try/except block with failsafe values
+    response = requests.get(config['data_url'])
+    j = response.json()
+
+    # tear it apart and stash the values, formatted appropriately
+    conditions['baro']         = format(float(j['current']['barometer']['value']), '.02f')
+    conditions['dewpt']        = format(float(j['current']['dewpoint']['value']) , '.0f' )
+    conditions['feels_like']   = format(float(j['current']['appTemp']['value'])  , '.0f' )
+    conditions['humidity']     = format(float(j['current']['humidity']['value']) , '.0f' )
+    conditions['temp_current'] = format(float(j['current']['outTemp']['value'])  , '.0f' )
+    conditions['temp_max']     = format(float(j['day']['high']['value'])         , '.0f' )
+    conditions['temp_min']     = format(float(j['day']['low']['value'])          , '.0f' )
+    conditions['total_rain']   = format(float(j['day']['rain']['value'])         , '.2f' )
+    conditions['weekRain']     = format(float(j['week']['rain']['value'])        , '.2f' )
+    conditions['wind']         = format(float(j['current']['windGust']['value']) , '.0f' )
+
+    try:
+        conditions['windcardinal'] = j['current']['windGustCardinal']['value']
+    except:
+        conditions['windcardinal'] = ""
+
+    conditions['icon_code']    = "clear"  # we later supersede this
+
+    conditions['sunrise']      = j['sunrise']
+    conditions['sunset']       = j['sunset']
+    conditions['periodOfDay']  = j['periodOfDay']
+    conditions['updated']      = j['currentTime']
+
+    conditions['description'] = "unknown"
+
+    #TODO: this is US units, should handle users who chose metric or metricwx
+    units['baro']         = "inHg"
+    units['dewpt']        = u'\N{DEGREE SIGN}' + "F"
+    units['feels_like']   = u'\N{DEGREE SIGN}' + "F"
+    units['humidity']     = "%"
+    units['temp_current'] = u'\N{DEGREE SIGN}' + "F"
+    units['temp_max']     = u'\N{DEGREE SIGN}' + "F"
+    units['temp_min']     = u'\N{DEGREE SIGN}' + "F"
+    units['total_rain']   = "in"
+    units['wind']         = "mph"
+    units['weekRain']     = "in"
+    units['precip_pct']   = "%"  # value comes from forecast
+
+    # TODO: this is gross - convert to datetime object then strftime it to HH:MM
+    #from datetime import datetime
+    #conditions['updated'] = datetime.strptime(j['generation']['time'], "%Y-%m-%dT%H:%M:%S%z").strftime('%H:%M')
+
+    return conditions, units
+
+#-----------------------------------------------------------
+# UNTESTED
+# TODO: why does this sleep 30 and then try again seemingly infinitely ?
+# define function for displaying error
+def display_error(error_source):
+    # Display an error
+    print('Error in the', error_source, 'request.')
+    # Initialize drawing
+    error_image = Image.new('1', (epd.width, epd.height), 255)
+    draw = ImageDraw.Draw(error_image)
+    draw.text((100, 150), error_source +' ERROR', font=font35, fill=black)
+    draw.text((100, 300), 'Retrying in 30 seconds', font=font22, fill=black)
+    current_time = datetime.now().strftime('%H:%M')
+    draw.text((300, 365), 'Last Refresh: ' + str(current_time), font = font35, fill=black)
+    # Save the error image
+    error_image_file = 'error.png'
+    error_image.save(os.path.join(tmpdir, error_image_file))
+    # Close error image
+    error_image.close()
+    # Write error to screen
+    if config['debug_screen'] == "True":
+        write_test_info(error_image_file, 30)
+    else:
+        write_to_screen(error_image_file, 30)
+
+#-----------------------------------------------------------
+
+def get_nws_alerts(alerts_url):
+    """
+    Get Severe weather data from NWS
+    
+    input:  nothing
+    output: string 'string_event'
+
+    """
+
+    if 'alerts' in config['debug']:
+        print("trying to get weather alerts")
+        print("   ") ; print(alerts_url)
+    response = requests.get(alerts_url)
+    nws = response.json()
+    try:
+        # note this gets the first alert only, there might be multiple ones in the NWS payload
+        alert    = nws['features'][int(0)]['properties']
+    except IndexError:
+        alert    = None
+
+    # what if we get here with no data ?
+    if alert:
+        event    = alert['event']
+        urgency  = alert['urgency']
+        severity = alert['severity']
+
+    # TODO: is this because some events can be very long ?
+    if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement') or event.endswith('Advisory')):
+        string_event = event
+    else:
+        string_event = None
+
+    return string_event
+
+#-----------------------------------------------------------
+
+def get_nws_forecast(forecast_url,forecast):
+
+    """
+    Get Forecast from NWS
+    
+    input:  empty forecast hash
+    output: forecast
+    """
+
+    if 'forecasts' in config['debug']:
+        print("trying to get weather forecasts from", forecast_url)
+    response = requests.get(forecast_url)
+    nws = response.json()
+    try:
+        # note this gets the first forecast only, there might be multiple ones in the NWS payload
+        currentForecast    = nws['properties']['periods'][0]
+    except IndexError:
+        currentForecast    = None
+
+    if currentForecast:
+        #TODO: handle response of 'null' without quotes
+        forecast['precip_pct'] = currentForecast['probabilityOfPrecipitation']['value']
+        forecast['icon_code']  = str.lower(currentForecast['shortForecast'])
+        forecast['shortForecast']  = currentForecast['shortForecast']
+
+    return forecast
+
+#---------------------------------------------------------------
 # main() here
 #---------------------------------------------------------------
 
@@ -157,57 +270,13 @@ sys.path.append('lib')
 # initialize some hashes used below
 conditions = {}
 config     = {}
+forecast   = {}
+units      = {}
 
 # read the config file
 config = read_config_file('config.json')
-print(config)
-
-###########################################################
-# temporary items in lieu of reading the config file
-###########################################################
-
-# hard set to two-color
-#config['twocolor_display'] = True
-
-# test data in lieu of getting actual data at this time
-conditions['baro']         = 30.23            # inHg
-conditions['dewpt']        = 54               # degF
-conditions['distance']     = "12 mi"          # NNN mi
-conditions['event']        = "Storm Warning"  # or None
-conditions['feels_like']   = 55               # degF
-conditions['humidity']     = 98               # pct
-conditions['precip_pct']   = 78               # pct
-conditions['rain_time']    = 34               # min
-conditions['strikes']      = 0                # (count) or None
-conditions['temp_current'] = 68.3             # degF
-conditions['temp_max']     = 72               # degF
-conditions['temp_min']     = 54               # degF
-conditions['total_rain']   = 2.2              # in
-conditions['updated']      = "12:34"          # HH:MM
-conditions['wind']         = 12.3             # mph
-conditions['windcardinal'] = "NNW"            # direction
-conditions['icon_code']    = "cloudy"         # see the icons dir for a list
-conditions['description']  = "Rain Possible"  # TODO: placeholder here
-
-#------------------------------------------------------------------
-# icon codes with day/night and non-specific variants are:
-#   rainy sleet snow thunderstorm
-#
-# icon codes with day-night but no non-specific variant are:
-#   clear partly-cloudy possibly-rainy possibly-sleet 
-#         possibly-snow possibly-thunderstorm
-#
-# TODO: should be a cloudy (only) icon
-#
-# misc icons are:
-#   barodown barosteady baroup
-#   cloudy foggy verycold veryhot windy
-#   dp precip rh strike totalrain warning wind
-#
-# this one can replace 'windy' with a meme
-#   windy-meme
-#
-###########################################################
+if 'config' in config['debug']:
+    print(config)
 
 # use the correct module for the specified type of display
 if config['twocolor_display']:
@@ -244,35 +313,6 @@ periodOfDay = None   # initialize
 
 now = datetime.datetime.now()
 
-# debug - force time to night using some time and date object lunacy
-#    ref: https://stackoverflow.com/questions/71323493/how-to-convert-time-object-to-datetime-object-in-python/71323494
-#tmpnow   ="2024-10-29 02:11:23"
-#timenow = time.strptime(tmpnow, '%Y-%m-%d %H:%M:%S')
-#now     = datetime.datetime(*timenow[:5])
-
-if config['sunrise_sunset'] == "astral":
-    print('using astral')
-    from astral import LocationInfo
-    from astral.sun import sun
-    loc      = LocationInfo(name='', region='', timezone=config['timezone'], latitude=config['latitude'], longitude=config['longitude'])
-    myepoch  = convertToEpoch(now)
-    s        = sun(loc.observer, date=datetime.date(now.year, now.month, now.day), tzinfo=loc.timezone)
-    periodOfDay = getPeriodOfDay(now,s['sunrise'],s['sunset'])
-    if config['sunrise_sunset'] == "astral":
-        print("-------------")
-        #print(loc)
-        #print(loc.observer)
-        print("current   :", now)
-        for key in ['sunrise', 'sunset']:
-            print(f'{key:10s}:', s[key])
-        print("-------------")
-else:
-    pass   # TODO: grab sunrise/sunset from WF data ? from weewx skin ?
-
-print(periodOfDay)
-
-#---------------------------------------------------------------
-
 # Initialize and clear screen
 print('Initializing and clearing screen.')
 epd.init()
@@ -288,40 +328,111 @@ epd.Clear()
 try:
     while True:
 
-        template = Image.open(os.path.join(picdir, 'template.png'))
-        draw = ImageDraw.Draw(template)
+        now = datetime.datetime.now()
 
+        ###############
+        # debug - force time to night using some time and date object lunacy
+        #    ref: https://stackoverflow.com/questions/71323493/how-to-convert-time-object-to-datetime-object-in-python/71323494
+        # tmpnow   ="2024-10-29 02:11:23"
+        # timenow = time.strptime(tmpnow, '%Y-%m-%d %H:%M:%S')
+        # now     = datetime.datetime(*timenow[:5])
+        ###############
+
+        #---------------------------------------------------------------
+        # get current conditions
+        #---------------------------------------------------------------
+
+        (conditions,units) = getWeewxConditions(conditions,units)
+
+        if 'conditions' in config['debug']:
+            print("conditions = ",  conditions)
+            print("units      = ",  units)
+        else:
+            print("not debugging conditions")
+
+        #---------------------------------------------------------------
+        # optionally show current time, periodOfDay, sunrise, sunset
+        #---------------------------------------------------------------
+
+        if 'datetime' in config['debug']:
+            print("current:", now, " is in ", conditions['periodOfDay'])
+            print("sunrise:", conditions['sunrise'])
+            print("sunset :", conditions['sunset'])
+        else:
+            print("not debugging datetime")
+
+        #---------------------------------------------------------------
+        # get forecast
+        #---------------------------------------------------------------
+
+        if 'forecast' in config['debug']:
+            print("getting nws forecast")
+
+        forecast_url = config['forecast_url']
+
+        #config['forecast_url'] = "https://api.weather.gov/gridpoints/GLD/116,80/forecast" # DEBUG ODD LOCATION
+
+        # TODO: this should be in a try/except
+        forecast = get_nws_forecast(config['forecast_url'],forecast)
+
+        if 'forecast' in config['debug']:
+            print(forecast)
+            print("forecast  : ", forecast)
+            print("conditions: ", conditions)
+        else:
+            print("not debugging forecast")
+
+        #---------------------------------------------------------------
+        # get alerts
+        #---------------------------------------------------------------
+
+        # TODO: what if they want alerts from other sources ???
+        alerts_url = config['alerts_url']
+
+        ####alerts_url = "https://api.weather.gov/alerts/active?zone=CAZ072" # Tahoe for test use only
+
+        event = get_nws_alerts(alerts_url)
+        conditions['event'] = event
+
+        if "alerts" in config['debug']:
+            print("alerts = ", event)
+            print(event)
+
+        #---------------------------------------------------------------
         # generate some strings with units and/or rounding as applicable
-        # TOODO: what if units are metric ?
+        #---------------------------------------------------------------
 
-        string_temp_max = 'High: ' + format(conditions['temp_max'], '.0f') +  u'\N{DEGREE SIGN}F'
-        string_temp_min = 'Low:  ' + format(conditions['temp_min'], '.0f') +  u'\N{DEGREE SIGN}F'
+        # the units are defined and values formatted above in getWeewxConditions
+
+        string_temp_max = 'High: ' + str(conditions['temp_max']) + units['temp_max']
+        string_temp_min = 'Low:  ' + str(conditions['temp_min']) + units['temp_min']
         
-        string_baro = str(conditions['baro']) +  ' in Hg'
-        string_precip_percent = 'Precip: ' + str(format(conditions['precip_pct'], '.0f'))  + '%'
-        string_feels_like = 'Feels like: ' + format(conditions['feels_like'], '.0f') +  u'\N{DEGREE SIGN}F'
-        string_temp_current = format(conditions['temp_current'], '.0f') + u'\N{DEGREE SIGN}F'
-        string_humidity = 'Humidity: ' + str(conditions['humidity']) + '%'
-        string_dewpt = 'Dew Point: ' + format(conditions['dewpt'], '.0f') +  u'\N{DEGREE SIGN}F'
-        string_wind = 'Wind: ' + format(conditions['wind'], '.1f') + ' MPH ' + conditions['windcardinal']
-        string_description = 'Now: ' + conditions['description']
+        string_baro = str(conditions['baro']) +  ' ' + units['baro']
 
-        # TODO: refactor this mess.....
-        if conditions['strikes'] is not None:
-            if int(conditions['strikes']) > 0:
-                string_strikes = str(conditions['strikes'])
-                string_distance = conditions['distance']
+        string_precip_percent = 'Precip: ' + str(forecast['precip_pct'])  + " " + units['precip_pct']
+        string_feels_like = 'Feels like: ' + str(conditions['feels_like']) + units['feels_like']
+        string_temp_current = str(conditions['temp_current']) + units['temp_current']
+        string_humidity = 'Humidity: ' + str(conditions['humidity']) + " " + units['humidity']
+        string_dewpt = 'Dew Point: ' + str(conditions['dewpt']) + units['dewpt']
+        string_wind = 'Wind: ' + str(conditions['wind']) + " " + units['wind'] + " " + conditions['windcardinal']
+        string_description = 'Now: ' + forecast['shortForecast']
 
         if conditions['event']:
             string_event = conditions['event']
         else:
             string_event = ""
 
-        if conditions['total_rain'] < 1000:
-            string_total_rain = 'Total: ' + str(format(conditions['total_rain'], '.2f')) + ' in | Duration: ' + str(conditions['rain_time']) + ' min'
-        else:
-            string_total_rain = 'Total: Trace | Duration: ' + str(conditions['rain_time']) + ' min'
-            string_rain_time = str(conditions['rain_time']) + 'min'
+        string_total_rain = 'Total: ' + \
+            str(conditions['total_rain']) + " " + units['total_rain'] + " | Week: " \
+            + str(conditions['weekRain']) + " " + units['weekRain']\
+
+        #------------------------------------------------------------------------
+        #---------------- start assembling the image ----------------------------
+        #------------------------------------------------------------------------
+
+        # the base image
+        template = Image.open(os.path.join(picdir, 'template.png'))
+        draw = ImageDraw.Draw(template)
 
         #------------------------------------------------------------------------
         #---------------- overlay data onto the image ---------------------------
@@ -330,24 +441,45 @@ try:
 
         #--------  top left box ------- 
 
-        icon_code = conditions['icon_code']
-        print("----- icon code = ", icon_code)
+        icon_code = forecast['icon_code']
+        if 'rain' in icon_code:
+            icon_code = 'rainy'
+        elif 'cloudy' in icon_code:
+            icon_code = 'cloudy'
+        elif 'sleet' in icon_code:
+            icon_code = 'sleet'
+        elif 'snow' in icon_code:
+            icon_code = 'snow'
+        elif 'thunder' in icon_code:
+            icon_code = 'thunderstorm'
+        elif 'clear' in icon_code:
+            icon_code = 'clear'
+        elif 'fog' in icon_code:
+            icon_code = 'foggy'
+
+        # some icons have no day/night variants
         if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('partly'):
             icon_file = icon_code + '.png'
-        elif periodOfDay != None:
-            if periodOfDay == "day":
+        elif conditions['periodOfDay'] != None:
+            if conditions['periodOfDay'] == "day":
                 icon_file = icon_code + '-day.png'
             else:
                 icon_file = icon_code + '-night.png'
         else:
             icon_file = icon_code + '.png'
 
-        print("icon_file is ", icon_file)
         icon_image = Image.open(os.path.join(icondir, icon_file))
         template.paste(icon_image, (40, 15))
         draw.text((15, 183), string_description, font=font22, fill=black)
 
+        baro_file = 'barosteady.png'
+        baro_image = Image.open(os.path.join(icondir, baro_file))
+        template.paste(baro_image, (15, 213))
         draw.text((65, 223),  string_baro                     , font=font22,  fill=black)  # baro
+
+        precip_file = 'precip.png'
+        precip_image = Image.open(os.path.join(icondir, precip_file))
+        template.paste(precip_image, (15, 255))
         draw.text((65, 263),  string_precip_percent           , font=font22,  fill=black)  # precip_pct
 
         #--------  bottom left box ------- 
@@ -361,14 +493,18 @@ try:
 
         # possible weather event text
         try:
-             if conditions['event'] != None:
+            if conditions['event'] != None:
                 alert_image = Image.open(os.path.join(icondir, "warning.png"))
                 template.paste(alert_image, (335, 255))
                 draw.text((385, 263), str(conditions['event']) , font=font23, fill=black)
+            else:
+                draw.text((455, 263), "(no alerts)" , font=font23, fill=black)
         except NameError:
             print('No Severe Weather')
 
-        # feels_like icon if it is hot or cold
+        # TODO: the +/- range likely needs tweaking for imperial units
+
+        # change the feels_like icon if it is hot or cold
         difference = int(conditions['feels_like']) - int(conditions['temp_current'])
         if difference >= 5:
             feels_file = 'veryhot.png'
@@ -385,46 +521,41 @@ try:
         draw.text((370, 435), string_wind                     , font=font23,  fill=black)  # wind
         draw.text((385, 263), ""                              , font=font23,  fill=black)  # event
 
+        # relative humidity
         rh_file = 'rh.png'
         rh_image = Image.open(os.path.join(icondir, rh_file))
         template.paste(rh_image, (320, 320))
 
+        # dew point
         dp_file = 'dp.png'
         dp_image = Image.open(os.path.join(icondir, dp_file))
         template.paste(dp_image, (320, 373))
 
+        # wind
         wind_file = 'wind.png'
         wind_image = Image.open(os.path.join(icondir, wind_file))
         template.paste(wind_image, (320, 425))
 
         # total_rain only if we have rain
-        if conditions['total_rain'] > 0 or conditions['total_rain'] == 1000:
-            train_image = Image.open(os.path.join(icondir, "totalrain.png"))
-            template.paste(train_image, (330, 15))
-            draw.text((380, 22), string_total_rain, font=font23, fill=black)
+        # TODO: or if it equals 1000 (huh?)
+        train_image = Image.open(os.path.join(icondir, "totalrain.png"))
+        template.paste(train_image, (330, 15))
+        draw.text((380, 22), string_total_rain, font=font23, fill=black)
 
         #--------  bottom right box ------- 
 
-        # lightning info or by default the HH:MM last updated
-        if conditions['strikes'] is not None and int(conditions['strikes']) > 0:
-            draw.text((695, 330), 'Strikes', font=font22, fill=white)
-            draw.text((685, 400), 'Distance', font=font22, fill=white)
-            draw.text((683, 430), string_distance, font=font20, fill=white)  # distance
-            draw.text((703, 360), string_strikes, font=font20, fill=white)  # strikes
-            strike_image = Image.open(os.path.join(icondir, "strike.png"))
-            template.paste(strike_image, (605, 305))
-        else:
-            draw.text((627, 330), 'UPDATED', font=font35, fill=white)
-            draw.text((627, 375), conditions['updated'], font = font60, fill=white)  # HH:MM
+        # HH:MM last updated
+        draw.text((627, 330), 'UPDATED', font=font35, fill=white)
+        draw.text((627, 375), conditions['updated'], font = font60, fill=white)  # HH:MM
 
         #------------------------------------------------------------------------
         #---------------- overlay data onto the image ---------------------------
         #----------------          done               ---------------------------
         #------------------------------------------------------------------------
 
-        # save the aggregate image
+        # save the aggregate image to a temporary file
         screen_output_file = os.path.join(tmpdir, 'screen_output.png')
-        template.save(screen_output_file) # TODO: this should go to /tmp
+        template.save(screen_output_file)
 
         # Close the template file
         template.close()
@@ -447,65 +578,10 @@ except KeyboardInterrupt:
 
 
 sys.exit(0)
-#-----------------------------------------------------------
-
-# define function for displaying error
-def display_error(error_source):
-    # Display an error
-    print('Error in the', error_source, 'request.')
-    # Initialize drawing
-    error_image = Image.new('1', (epd.width, epd.height), 255)
-    draw = ImageDraw.Draw(error_image)
-    draw.text((100, 150), error_source +' ERROR', font=font35, fill=black)
-    draw.text((100, 300), 'Retrying in 30 seconds', font=font22, fill=black)
-    current_time = datetime.now().strftime('%H:%M')
-    draw.text((300, 365), 'Last Refresh: ' + str(current_time), font = font35, fill=black)
-    # Save the error image
-    error_image_file = 'error.png'
-    error_image.save(os.path.join(picdir, error_image_file)) # TODO: this should go to /tmp
-    # Close error image
-    error_image.close()
-    # Write error to screen
-    if config['debug_screen'] == "True":
-        write_test_info(error_image_file, 30)
-    else:
-        write_to_screen(error_image_file, 30)
 
 #-----------------------------------------------------------
-
-def get_nws_alerts():
-    """
-    Get Severe weather data from NWS
-    
-    input:  nothing
-    output: string 'string_event'
-
-    """
-    if config['debug'] == "True":
-        print("trying to get weather alerts")
-    if config['debug_nws'] == "True":
-        print("   ") ; print(alerts_url)
-    response = requests.get(alerts_url)
-    nws = response.json()
-    try:
-        # note this gets the first alert only, there might be multiple ones in the NWS payload
-        alert    = nws['features'][int(0)]['properties']
-    except IndexError:
-        alert    = None
-
-    if alert:
-        event    = alert['event']
-        urgency  = alert['urgency']
-        severity = alert['severity']
-
-    # TODO: why does this only look for 'some' alerts ?
-    if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement')):
-        string_event = event
-    else:
-        string_event = None
-
-    return string_event
-
+#-----------------------------------------------------------
+#-----------------------------------------------------------
 #-----------------------------------------------------------
 
 """
@@ -514,71 +590,8 @@ def get_nws_alerts():
 ----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 ----------- BEGIN OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 
-# main() here
-
-config = read_config_file('config.json')
-# assemble some url we will use below
-if config['data_source'] == "WeatherFlow":
-    current_conditions_url = 'https://swd.weatherflow.com/swd/rest/better_forecast?station_id=' + config['station_id'] \
-                        + '&units_temp=f&units_wind=mph&units_pressure=inhg&units_precip=in&units_distance=mi&token=' + config['api_token']
-elif config['data_source'] == "url":
-    current_conditions_url = config['data_url']
-else:
-    current_conditions_url = None
-    print("current_conditions_url not defined - exiting")
-    sys.exit(1)
-
-#------ how to get NWS forecasts ----
-#
-# look up the forecast url based on your lat/lon
-#    lat=47.31; lon=-122.36 ; myurl="https://api.weather.gov/points/" + str(lat) + "," + str(lon)
-#    print(myurl)
-#    sys.exit(0)
-#
-# run that url ala https://api.weather.gov/points/47.31,-122.36 and it returns:
-#    "properties": {
-#        "forecastZone": "https://api.weather.gov/zones/forecast/WAZ558
-#        "forecast": "https://api.weather.gov/gridpoints/SEW/121,54/forecast",
-#
-# run the forecast url and it returns properties['periods'][0] of
-#                "temperature": 67,
-#                "temperatureUnit": "F",
-#                "temperatureTrend": "",
-#                "probabilityOfPrecipitation": {
-#                    "unitCode": "wmoUnit:percent",
-#                    "value": 20
-#                },
-#                "windSpeed": "7 mph",
-#                "windDirection": "SW",
-#                "icon": "https://api.weather.gov/icons/land/day/rain_showers,20?size=medium",
-#                "shortForecast": "Slight Chance Rain Showers",
-#            },
-# so....
-#
-#    forecast                         = properties['periods'][0]
-#    forecast_temp                    = forecast['temperature']
-#    forecast_precip_pct              = forecast['probabilityOfPrecipitation']['value']
-#    forecast_wind                    = forecast['windSpeed']
-#    forecast_wind_cardinal_direction = forecast['windDirection']
-#    forecast_string                  = forecast['shortForecast']
-#
-# careful on some values, they might read "10 to 14 mph" or the like
-#
-
-if config['alerts_source'] == "NWS":
-    alerts_url = "https://api.weather.gov/alerts/active?zone=" + config['alerts_zone']
-else:
-    alerts_url = ""
-
 # Tampa is FLZ151
-#alerts_url = "https://api.weather.gov/alerts/active?zone=" + "FLZ151"
-
-# initialize some hashes used below
-conditions={}
-config = {}
-
-# we'd also read the config file here.....
-
+# Tahoe is CAZ072
 
 ----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 ----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------

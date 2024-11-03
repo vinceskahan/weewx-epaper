@@ -1,18 +1,10 @@
 {
-    "data_source"      : "WeatherFlow" ,
-    "data_url"         : None ,
-    "station_id"       : "12345" ,
-    "api_token"        : "12345123-1234-1234-1234-123456789012" ,
-    "alerts_source"    : "NWS" ,
-    "alerts_zone"      : "FLZ050" ,
-    "latitude"         : "47.31",
-    "longitude"        : "-122.36",
-    "sunrise_sunset"   : "astral",
-    "timezone"         : "America/Los_Angeles" ,
-    "twocolor_display" : "1" ,
-    "debug"            : "False" ,
-    "debug_nws"        : "True" ,
-    "debug_screen"     : "False"
+    "twocolor_display" : "True"  ,
+    "data_url"         : "http://pi4/weewx/vp2/current.html" ,
+    "alerts_url"       : "https://api.weather.gov/alerts/active?zone=WAZ558", 
+    "forecast_url"     : "https://api.weather.gov/gridpoints/SEW/121,54/forecast",
+    "debug"            : [ ],
+    "possible_debug"   : [ "alerts", "config", "conditions", "datetime", "forecast" ]
 }
 
 #-----------------------------------------------------------------------
@@ -32,14 +24,14 @@
 #        cat config.json | jq .
 #
 #
-# About these settings...
-#  data_source = WeatherFlow requires station_id and api_token
-#  data_source = url requires data_url to query JSON data from (weewx)
+# data_url is the json output from the current.html.tmpl weewx skin located here
 #
-#  alerts_source = NWS requires alerts_zone
+# alerts_url and forecast_url are the NWS URLs to get that data.  See the
+# docs subdirectory for details on how to determine your URLs.
 #
-#  sunrise_sunset = astral requires latitude, longitude, timezone
-#                   and the astral python library must be installed
-#
+# debug is an array of things you can choose to print debugging info about,
+# with 'possible_debug' listing all the possible things currently supported
+# (because JSON does not support comments)
+# 
 #-----------------------------------------------------------------------
 

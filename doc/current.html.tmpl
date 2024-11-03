@@ -1,0 +1,68 @@
+{
+    "currentTime": "$current.dateTime.format("%H:%M")",
+    "sunrise": "$almanac.sun.rise",
+    "sunset": "$almanac.sun.set",
+    #if $current.dateTime.raw < $almanac.sun.rise.raw
+    "periodOfDay": "night",
+    #elif $current.dateTime.raw > $almanac.sun.set.raw
+    "periodOfDay": "night",
+    #else
+    "periodOfDay": "day",
+    #end if
+
+    "current": {
+        #if $current.outTemp.has_data
+        "outTemp": {"value": $current.outTemp.raw, "units": "$current.outTemp.format(" ").lstrip()"},
+        #end if
+        #if $current.dewpoint.has_data
+        "dewpoint": {"value": $current.dewpoint.raw, "units": "$current.dewpoint.format(" ").lstrip()"},
+        #end if
+        #if $current.outHumidity.has_data
+        "humidity": {"value": $current.outHumidity.raw, "units": "$current.outHumidity.format(" ").lstrip()"},
+        #end if
+        #if $current.barometer.has_data
+        "barometer": {"value": $current.barometer.raw, "units": "$current.barometer.format(" ").lstrip()"},
+        #end if
+        #if $current.windSpeed.has_data
+        "windSpeed": {"value": $current.windSpeed.raw, "units": "$current.windSpeed.format(" ").lstrip()"},
+        #end if
+        #if $current.windGust.has_data
+        "windGust": {"value": $current.windGust.raw, "units": "$current.windGust.format(" ").lstrip()"},
+        #end if
+        #if $current.windGustDir.has_data
+        "windGustDir": {"value": $current.windGustDir.raw, "units": "$current.windGustDir.format(" ").lstrip()"},
+        "windGustCardinal": {"value": "$current.windGustDir.ordinal_compass"},
+        #end if
+        #if $current.windchill.has_data
+        "windchill": {"value": $current.windchill.raw, "units": "$current.windchill.format(" ").lstrip()"},
+        #end if
+        #if $current.heatindex.has_data
+        "heatindex": {"value": $current.heatindex.raw, "units": "$current.heatindex.format(" ").lstrip()"},
+        #end if
+        #if $current.appTemp.has_data
+        "appTemp": {"value": $current.appTemp.raw, "units": "$current.appTemp.format(" ").lstrip()"},
+        #end if
+        ## Last value can't end with a comma
+        "void_end": null
+    },
+
+    "day": {
+        #if $day.outTemp.has_data
+        "high": {"value": $day.outTemp.max.raw, "units": "$day.outTemp.max.format(" ").lstrip()"},
+        "low": {"value": $day.outTemp.min.raw, "units": "$day.outTemp.min.format(" ").lstrip()"},
+        #end if
+        #if $day.rain.has_data
+        "rain": {"value": $day.rain.sum.raw, "units": "$day.rain.sum.format(" ").lstrip()"},
+        #end if
+        ## Last value can't end with a comma
+        "void_end": null
+    },
+
+    "week": {
+        #if $week.rain.has_data
+        "rain": {"value": $week.rain.sum.raw, "units": "$week.rain.sum.format(" ").lstrip()"},
+        #end if
+        ## Last value can't end with a comma
+        "void_end": null
+    }
+}
