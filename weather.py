@@ -115,8 +115,12 @@ def getWeewxConditions(conditions,units):
     '''
 
     #TODO: need this in try/except block with failsafe values
-    response = requests.get(config['data_url'])
-    j = response.json()
+
+    try:
+        response = requests.get(config['data_url'])
+        j = response.json()
+    except:
+        display_error('WEEWX_DATA')
 
     # tear it apart and stash the values, formatted appropriately
     conditions['baro']         = format(float(j['current']['barometer']['value']), '.02f')
@@ -143,6 +147,16 @@ def getWeewxConditions(conditions,units):
     conditions['updated']      = j['currentTime']
 
     conditions['description'] = "unknown"
+
+    # trend is if +/- 1mb which is a little under 0.03 inHg
+    barodiff = float(j['trend']['barometer']['value'])
+    if barodiff >= 0.03:
+        conditions['trend'] = "rising"
+    elif barodiff <=-0.03:
+        conditions['trend'] = "falling"
+    else:
+        conditions['trend'] = "steady"
+ 
 
     #TODO: this is US units, should handle users who chose metric or metricwx
     units['baro']         = "inHg"
@@ -175,7 +189,7 @@ def display_error(error_source):
     draw = ImageDraw.Draw(error_image)
     draw.text((100, 150), error_source +' ERROR', font=font35, fill=black)
     draw.text((100, 300), 'Retrying in 30 seconds', font=font22, fill=black)
-    current_time = datetime.now().strftime('%H:%M')
+    current_time = datetime.datetime.now().strftime('%H:%M')
     draw.text((300, 365), 'Last Refresh: ' + str(current_time), font = font35, fill=black)
     # Save the error image
     error_image_file = 'error.png'
@@ -183,10 +197,7 @@ def display_error(error_source):
     # Close error image
     error_image.close()
     # Write error to screen
-    if config['debug_screen'] == "True":
-        write_test_info(error_image_file, 30)
-    else:
-        write_to_screen(error_image_file, 30)
+    write_to_screen(error_image_file, 30)
 
 #-----------------------------------------------------------
 
@@ -347,8 +358,6 @@ try:
         if 'conditions' in config['debug']:
             print("conditions = ",  conditions)
             print("units      = ",  units)
-        else:
-            print("not debugging conditions")
 
         #---------------------------------------------------------------
         # optionally show current time, periodOfDay, sunrise, sunset
@@ -358,8 +367,6 @@ try:
             print("current:", now, " is in ", conditions['periodOfDay'])
             print("sunrise:", conditions['sunrise'])
             print("sunset :", conditions['sunset'])
-        else:
-            print("not debugging datetime")
 
         #---------------------------------------------------------------
         # get forecast
@@ -379,8 +386,6 @@ try:
             print(forecast)
             print("forecast  : ", forecast)
             print("conditions: ", conditions)
-        else:
-            print("not debugging forecast")
 
         #---------------------------------------------------------------
         # get alerts
@@ -417,6 +422,9 @@ try:
         string_wind = 'Wind: ' + str(conditions['wind']) + " " + units['wind'] + " " + conditions['windcardinal']
         string_description = 'Now: ' + forecast['shortForecast']
 
+        if "shortForecast" in config['debug']:
+            print("shortForecast: ", forecast['shortForecast'])
+
         if conditions['event']:
             string_event = conditions['event']
         else:
@@ -441,6 +449,8 @@ try:
 
         #--------  top left box ------- 
 
+        #TODO: need all NWS variants of what shortForecast might be
+
         icon_code = forecast['icon_code']
         if 'rain' in icon_code:
             icon_code = 'rainy'
@@ -456,9 +466,12 @@ try:
             icon_code = 'clear'
         elif 'fog' in icon_code:
             icon_code = 'foggy'
+        elif 'sunny' in icon_code:
+            icon_code = 'clear'
 
+        #TODO: these are WF variants - need the syntax for NWS forecast variants
         # some icons have no day/night variants
-        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('partly'):
+        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('partly'): 
             icon_file = icon_code + '.png'
         elif conditions['periodOfDay'] != None:
             if conditions['periodOfDay'] == "day":
@@ -468,11 +481,22 @@ try:
         else:
             icon_file = icon_code + '.png'
 
-        icon_image = Image.open(os.path.join(icondir, icon_file))
+        try:
+            icon_image = Image.open(os.path.join(icondir, icon_file))
+        except:
+            print("ERROR - cannot open", icon_file)
+            icon_image = Image.open(os.path.join(icondir, 'warning.png'))
+
         template.paste(icon_image, (40, 15))
         draw.text((15, 183), string_description, font=font22, fill=black)
 
-        baro_file = 'barosteady.png'
+        if conditions['trend'] == "falling":
+            baro_file = 'barodown.png'
+        elif conditions['trend'] == "steady":
+            baro_file = 'barosteady.png'
+        elif conditions['trend'] == "rising":
+            baro_file = 'baroup.png'
+        
         baro_image = Image.open(os.path.join(icondir, baro_file))
         template.paste(baro_image, (15, 213))
         draw.text((65, 223),  string_baro                     , font=font22,  fill=black)  # baro

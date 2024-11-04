@@ -1,0 +1,9 @@
+#!/bin/bash
+
+# run this program nohup(ped) with output and error output
+# going to a file in /tmp to protect the SD from writes.
+#
+# if the program exits, tracebacks etc. will be in this file.
+#
+
+nohup python -u weather.py > /tmp/program.out 2>&1 &

@@ -1,10 +1,10 @@
 {
     "twocolor_display" : "True"  ,
     "data_url"         : "http://pi4/weewx/vp2/current.html" ,
-    "alerts_url"       : "https://api.weather.gov/alerts/active?zone=WAZ558", 
+    "alerts_url"       : "https://api.weather.gov/alerts?point=48.31,-122.36",
     "forecast_url"     : "https://api.weather.gov/gridpoints/SEW/121,54/forecast",
-    "debug"            : [ ],
-    "possible_debug"   : [ "alerts", "config", "conditions", "datetime", "forecast" ]
+    "debug"            : [ "shortForecast" ],
+    "possible_debug"   : [ "alerts", "config", "conditions", "datetime", "forecast", "shortForecast" ]
 }
 
 #-----------------------------------------------------------------------
@@ -23,15 +23,14 @@
 #        apt-get install -y jq
 #        cat config.json | jq .
 #
-#
 # data_url is the json output from the current.html.tmpl weewx skin located here
 #
 # alerts_url and forecast_url are the NWS URLs to get that data.  See the
-# docs subdirectory for details on how to determine your URLs.
+# docs subdirectory for details on how to determine your determine your forecast url
+# and subsitute your lat/lon in above to determine your alerts url.
 #
 # debug is an array of things you can choose to print debugging info about,
 # with 'possible_debug' listing all the possible things currently supported
 # (because JSON does not support comments)
-# 
+#
 #-----------------------------------------------------------------------
-
