@@ -7,7 +7,7 @@ Note - actual good docs are TBD :-)
 Raspberry Pi weather display using Waveshare e-paper 7.5 inch display, WeeWX Weather Station data, and Python3.
 
 Sample output:
-[<img src="https://github.com/vinceskahan/Tempest-7.5-E-Paper-Display/blob/twocolor/doc/screen_output.png" width=40% height=40%>]
+<img src="https://github.com/vinceskahan/Tempest-7.5-E-Paper-Display/blob/twocolor/doc/screen_output.png" width=40% height=40%>
 
 ## Versions
 * Version 0.1
