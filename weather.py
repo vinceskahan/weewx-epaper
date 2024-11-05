@@ -84,6 +84,8 @@ def write_to_screen(image, sleep_seconds):
     output: nothing
     """
 
+    #TODO: should we epd.init 'and' epd.clear to prevent burn-in ?
+
     print('Writing to screen.')
     h_image = Image.new('1', (epd.width, epd.height), 255)
     screen_output_file = Image.open(os.path.join(picdir, image))
@@ -420,7 +422,14 @@ try:
         string_humidity = 'Humidity: ' + str(conditions['humidity']) + " " + units['humidity']
         string_dewpt = 'Dew Point: ' + str(conditions['dewpt']) + units['dewpt']
         string_wind = 'Wind: ' + str(conditions['wind']) + " " + units['wind'] + " " + conditions['windcardinal']
-        string_description = 'Now: ' + forecast['shortForecast']
+
+        # "Chance Rain Showers" is 3 char too long to fit
+        string_description = forecast['shortForecast']
+        if len(forecast['shortForecast']) < 18:
+            string_description = 'Now: ' + forecast['shortForecast']
+        else:
+            # handle things like "Partly Sunny then Chance Rain Showers"
+            string_description = forecast['shortForecast'].split('then',1)[0]
 
         if "shortForecast" in config['debug']:
             print("shortForecast: ", forecast['shortForecast'])
