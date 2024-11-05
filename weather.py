@@ -212,24 +212,35 @@ def get_nws_alerts(alerts_url):
 
     """
 
+    # TODO: possibly check all alerts to find the first active one  ?
     if 'alerts' in config['debug']:
         print("trying to get weather alerts")
         print("   ") ; print(alerts_url)
     response = requests.get(alerts_url)
     nws = response.json()
     try:
-        # note this gets the first alert only, there might be multiple ones in the NWS payload
-        alert    = nws['features'][int(0)]['properties']
+        # check the first alert
+        alert       = nws['features'][int(0)]['properties']
+        messageType = alert['messageType']
+        if messageType == "Cancel":
+            try:
+                # if first alert is canceled check for one more alert
+                alert       = nws['features'][int(1)]['properties']
+                messageType = alert['messageType']
+                if messageType == "Cancel":
+                    alert = None
+            except IndexError:
+                alert = None
     except IndexError:
         alert    = None
 
-    # what if we get here with no data ?
+    # if we still have one that wasn't canceled...
     if alert:
-        event    = alert['event']
-        urgency  = alert['urgency']
-        severity = alert['severity']
+        event       = alert['event']
+        urgency     = alert['urgency']
+        severity    = alert['severity']
 
-    # TODO: is this because some events can be very long ?
+    # TODO: this might be a bit WeatherFlow specific, and is this because some events can be very long ?
     if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement') or event.endswith('Advisory')):
         string_event = event
     else:
