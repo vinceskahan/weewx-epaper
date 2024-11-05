@@ -4,8 +4,6 @@ Display your WeeWX weather data and NWS alerts/forecasts on a 7.5" Waveshare e-p
 
 Note - actual good docs are TBD :-)
 
-Raspberry Pi weather display using Waveshare e-paper 7.5 inch display, WeeWX Weather Station data, and Python3.
-
 <img src="https://github.com/vinceskahan/Tempest-7.5-E-Paper-Display/blob/twocolor/doc/screen_output.png" width=40% height=40%>
 
 ## Versions
@@ -37,4 +35,4 @@ This licensing data is from the upstream projects and is here for reference only
 * Documentation licensed under [CC BY 3.0](http://creativecommons.org/licenses/by/3.0)</li>
 
 ## Credits
-See the 'CREDITS' file in the subdirectory for more details.
+This is based on a few nice upstream projects. See the 'CREDITS' file in the subdirectory for more details.
