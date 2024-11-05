@@ -7,7 +7,7 @@ Note - actual good docs are TBD :-)
 Raspberry Pi weather display using Waveshare e-paper 7.5 inch display, WeeWX Weather Station data, and Python3.
 
 Sample output:
-* [<img src="https://github.com/vinceskahan/Tempest-7.5-E-Paper-Display/blob/twocolor/doc/screen_output.png" width=40% height=40%>](link)
+[<img src="https://github.com/vinceskahan/Tempest-7.5-E-Paper-Display/blob/twocolor/doc/screen_output.png" width=40% height=40%>]
 
 ## Versions
 * Version 0.1
@@ -18,19 +18,19 @@ Sample output:
 ## Setup
 This project assumes you have a working WeeWX system with a linked in webserver.
 
-1. Install the skin located under the docs directory here
+1. Install the `weewx-epaper` skin located under the `docs` directory here using the weewx extension installer
 2. Enable the SPI interface on your pi via the instructions from Waveshare (https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_(B)_Manual#Enable_SPI_Interface). If not already enabled, this will require a one-time reboot of the pi.
-3. Copy 'config.json.example' to 'config.json' and edit per the instructions therein.
-4. To test, cd to the directory and run "python3 weather.py".  Hit Control-C to exit.
-5. To interactively run in the background, run "bash runit".  You'll need to manually kill the process in this case.
+3. Copy `config.json.example` to `config.json` and edit per the instructions therein.
+4. To test, cd to the directory and run `python3 weather.py`.  Hit Control-C to exit.
+5. To interactively run in the background, run `bash runit`.  You'll need to manually kill the process in this case.
 
 ## Partslist
-* https://www.waveshare.com/7.5inch-e-paper-hat-b.htm -OR- https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT</li>
-* Raspberry Pi ZeroW+, pi3, or later</li>
-* SD card for the Pi at least 8 GB.</li>
-* Power supply for the Pi.</li>
-* 5 x 7 inch photo frame</li>
-* Optional: 3D printer to print new back/mask for frame</li>
+* Waveshare 7.5 inch e-paper HAT (https://www.waveshare.com/7.5inch-e-paper-hat-b.htm, manual at  https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT)
+* Raspberry Pi ZeroW+, pi3, or later
+* SD card for the Pi at least 8 GB
+* Power supply for the Pi
+* 5 x 7 inch photo frame<
+* Optional: 3D printer to print new back/mask for frame
 
 ## Licensing
 This licensing data is from the upstream projects and is here for reference only.
