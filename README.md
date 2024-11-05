@@ -28,7 +28,7 @@ This project assumes you have a working WeeWX system with a linked in webserver.
 * Raspberry Pi ZeroW+, pi3, or later
 * SD card for the Pi at least 8 GB
 * Power supply for the Pi
-* 5 x 7 inch photo frame<
+* 5 x 7 inch photo fram - some trimming of the mat will likely be needed
 * Optional: 3D printer to print new back/mask for frame
 
 ## Licensing

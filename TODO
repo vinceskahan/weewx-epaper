@@ -1,4 +1,6 @@
 
+* test the skin and update docs to its new name and output file name
+
 * good docs reflecting this fork, and of course crediting upstream
 
 * systemd setup to install this to run continually as a service
