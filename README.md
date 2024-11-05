@@ -35,4 +35,4 @@ This licensing data is from the upstream projects and is here for reference only
 * Documentation licensed under [CC BY 3.0](http://creativecommons.org/licenses/by/3.0)</li>
 
 ## Credits
-This is based on a few nice upstream projects. See the 'CREDITS' file in the subdirectory for more details.
+This is based on a few nice upstream projects. See the 'CREDITS' file here [(link)](CREDITS) for more details.
