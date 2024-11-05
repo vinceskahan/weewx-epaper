@@ -1,11 +1,16 @@
 <h1>Tempest E-paper Weather Display</h1>
 
 <p>
-Note: this branch has my mods to try to make this cool program more configurable and extensible.  The intent is to read a config.json file with all the configurable parameters, and to permit the user to "un-WeatherFlow-ize" and then "weewx-ize" it, so to speak.  The basic idea is to try to get this nice dashboard working on any station supported by weewx.  The 'how' is still under development but it is likely that we'll have weewx write out a current conditions data file from a custom skin .tmpl template file so that this app can simply read the data to cram into the epaper display.  Or not.  As I said, it's under development :-)
-
-At this time, this requires installation of the 'astral' python library to calculate sunrise/sunset in a portable manner rather than relying on the data from the WeatherFlow current conditions.  As I said above, the intent is to not require any WeatherFlow services for the more general weewx user base.
+Note: this branch has my mods to try to make this cool program more configurable and extensible, using weeWX for weather and NWS for alerts/forecasts.
 
 For weewx users, install the weewx-json skin to generate JSON-formatted data when your weewx reports are generated.  In that case you want to specify the path to its generated "weewx.json" file in the data_url item in config.json here.  It is untested whether a file:///somepath/here/weewx.json url will work or not.  More typical http://something/weewx.json url is tested and works ok here.
+
+See the config.json.example file for how to install it.  The bash script "runit" will fire it up in the background, nohupped, with debugging logs to /tmp which is typically tmpfs so your SD card should be protected from too many writes.  One installed, no actual writes will be done.
+
+This variant uses a somewhat older version of the waveshare libs for the 2-color greyscale screen (included).
+
+Note - actual good docs are TBD :-)
+
 <p>
 
 <hr>
