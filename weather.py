@@ -160,7 +160,7 @@ def getWeewxConditions(conditions,units):
         conditions['trend'] = "steady"
  
 
-    #TODO: this is US units, should handle users who chose metric or metricwx
+    #TODO: this is US units, should handle users who chose metric or metricwx via a config.json setting
     units['baro']         = "inHg"
     units['dewpt']        = u'\N{DEGREE SIGN}' + "F"
     units['feels_like']   = u'\N{DEGREE SIGN}' + "F"
@@ -546,7 +546,7 @@ try:
         except NameError:
             print('No Severe Weather')
 
-        # TODO: the +/- range likely needs tweaking for imperial units
+        # TODO: the +/- range likely needs tweaking for imperial units, make the diff threshold configurable ?
 
         # change the feels_like icon if it is hot or cold
         difference = int(conditions['feels_like']) - int(conditions['temp_current'])
