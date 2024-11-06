@@ -26,7 +26,10 @@ This project assumes you have a working WeeWX system with a linked in webserver.
 * Raspberry Pi ZeroW+, pi3, or later
 * SD card for the Pi at least 8 GB
 * Power supply for the Pi
-* 5 x 7 inch photo fram - some trimming of the mat will likely be needed
+* 5 x 7 inch photo fram - The location of the 'hole' in a typical 5x7 mat is approximately:
+    * 28mm from the left/right edges
+    * 29mm from the top edge
+    * 39mm from the bottom edge
 * Optional: 3D printer to print new back/mask for frame
 
 ## Licensing
