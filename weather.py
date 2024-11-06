@@ -12,7 +12,7 @@
 #       rainy sleet snow thunderstorm
 #
 #     icon codes with day-night but no non-specific variant are:
-#       clear partly-cloudy possibly-rainy possibly-sleet 
+#       clear partly-cloudy possibly-rainy possibly-sleet
 #         possibly-snow possibly-thunderstorm
 #
 #     misc icons are:
@@ -158,9 +158,9 @@ def getWeewxConditions(conditions,units):
         conditions['trend'] = "falling"
     else:
         conditions['trend'] = "steady"
- 
 
-    #TODO: this is US units, should handle users who chose metric or metricwx via a config.json setting
+
+    #TODO: this is US units, should handle users who chose metric or metricwx
     units['baro']         = "inHg"
     units['dewpt']        = u'\N{DEGREE SIGN}' + "F"
     units['feels_like']   = u'\N{DEGREE SIGN}' + "F"
@@ -206,33 +206,42 @@ def display_error(error_source):
 def get_nws_alerts(alerts_url):
     """
     Get Severe weather data from NWS
-    
+
     input:  nothing
     output: string 'string_event'
 
     """
 
-    # TODO: possibly check all alerts to find the first active one  ?
     if 'alerts' in config['debug']:
         print("trying to get weather alerts")
         print("   ") ; print(alerts_url)
+
     response = requests.get(alerts_url)
     nws = response.json()
+
     try:
-        # check the first alert
+        # check for the first alert
         alert       = nws['features'][int(0)]['properties']
         messageType = alert['messageType']
-        if messageType == "Cancel":
+        expires     = alert['expires']
+        currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
+        if currentTime > expires:
+            expired = True
+        if expired or messageType == "Cancel":
             try:
-                # if first alert is canceled check for one more alert
+                # check for a second alert
                 alert       = nws['features'][int(1)]['properties']
                 messageType = alert['messageType']
-                if messageType == "Cancel":
+                expires     = alert['expires']
+                currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
+                if currentTime > expires:
+                    expired = True
+                if expired or messageType == "Cancel":
                     alert = None
             except IndexError:
-                alert = None
+                alert = None       # no second alert
     except IndexError:
-        alert    = None
+        alert    = None            # no first alert
 
     # if we still have one that wasn't canceled...
     if alert:
@@ -254,7 +263,7 @@ def get_nws_forecast(forecast_url,forecast):
 
     """
     Get Forecast from NWS
-    
+
     input:  empty forecast hash
     output: forecast
     """
@@ -424,7 +433,7 @@ try:
 
         string_temp_max = 'High: ' + str(conditions['temp_max']) + units['temp_max']
         string_temp_min = 'Low:  ' + str(conditions['temp_min']) + units['temp_min']
-        
+
         string_baro = str(conditions['baro']) +  ' ' + units['baro']
 
         string_precip_percent = 'Precip: ' + str(forecast['precip_pct'])  + " " + units['precip_pct']
@@ -467,7 +476,7 @@ try:
         #----------------           start             ---------------------------
         #------------------------------------------------------------------------
 
-        #--------  top left box ------- 
+        #--------  top left box -------
 
         #TODO: need all NWS variants of what shortForecast might be
 
@@ -491,7 +500,7 @@ try:
 
         #TODO: these are WF variants - need the syntax for NWS forecast variants
         # some icons have no day/night variants
-        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('partly'): 
+        if icon_code.startswith('possibly') or icon_code  == 'cloudy' or icon_code == 'foggy' or icon_code == 'windy' or icon_code.startswith('partly'):
             icon_file = icon_code + '.png'
         elif conditions['periodOfDay'] != None:
             if conditions['periodOfDay'] == "day":
@@ -516,7 +525,7 @@ try:
             baro_file = 'barosteady.png'
         elif conditions['trend'] == "rising":
             baro_file = 'baroup.png'
-        
+
         baro_image = Image.open(os.path.join(icondir, baro_file))
         template.paste(baro_image, (15, 213))
         draw.text((65, 223),  string_baro                     , font=font22,  fill=black)  # baro
@@ -526,11 +535,11 @@ try:
         template.paste(precip_image, (15, 255))
         draw.text((65, 263),  string_precip_percent           , font=font22,  fill=black)  # precip_pct
 
-        #--------  bottom left box ------- 
+        #--------  bottom left box -------
         draw.text((35, 330),  string_temp_max                 , font=font50,  fill=black)  # temp_max
         draw.text((35, 395),  string_temp_min                 , font=font50,  fill=black)  # temp_min
 
-        #--------  top right box ------- 
+        #--------  top right box -------
         draw.text((380, 22),  string_total_rain               , font=font23,  fill=black)  # total_rain
         draw.text((365, 35),  string_temp_current             , font=font160, fill=black)  # temp_current
         draw.text((360, 195), string_feels_like               , font=font50,  fill=black)  # feels_like
@@ -541,12 +550,10 @@ try:
                 alert_image = Image.open(os.path.join(icondir, "warning.png"))
                 template.paste(alert_image, (335, 255))
                 draw.text((385, 263), str(conditions['event']) , font=font23, fill=black)
-            else:
-                draw.text((455, 263), "(no alerts)" , font=font23, fill=black)
         except NameError:
             print('No Severe Weather')
 
-        # TODO: the +/- range likely needs tweaking for imperial units, make the diff threshold configurable ?
+        # TODO: the +/- range likely needs tweaking for imperial units
 
         # change the feels_like icon if it is hot or cold
         difference = int(conditions['feels_like']) - int(conditions['temp_current'])
@@ -559,7 +566,7 @@ try:
             feels_image = Image.open(os.path.join(icondir, feels_file))
             template.paste(feels_image, (720, 196))
 
-        #--------  bottom middle box ------- 
+        #--------  bottom middle box -------
         draw.text((370, 330), string_humidity                 , font=font23,  fill=black)  # humidity
         draw.text((370, 383), string_dewpt                    , font=font23,  fill=black)  # dewpt
         draw.text((370, 435), string_wind                     , font=font23,  fill=black)  # wind
@@ -586,7 +593,7 @@ try:
         template.paste(train_image, (330, 15))
         draw.text((380, 22), string_total_rain, font=font23, fill=black)
 
-        #--------  bottom right box ------- 
+        #--------  bottom right box -------
 
         # HH:MM last updated
         draw.text((627, 330), 'UPDATED', font=font35, fill=white)
