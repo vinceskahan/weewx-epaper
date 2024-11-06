@@ -27,7 +27,7 @@ This project assumes you have a working WeeWX system with a linked in webserver.
 * SD card for the Pi at least 8 GB
 * Power supply for the Pi
 * 5 x 7 inch photo frame with a trimmed mat - the hole is located approximately:
-    * 28mm from the left/right edges
+    * 27mm from the left/right edges
     * 29mm from the top edge
     * 39mm from the bottom edge
 * Optional: 3D printer to print new back/mask for frame
