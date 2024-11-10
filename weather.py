@@ -225,9 +225,7 @@ def get_nws_alerts(alerts_url):
         messageType = alert['messageType']
         expires     = alert['expires']
         currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
-        if currentTime > expires:
-            expired = True
-        if expired or messageType == "Cancel":
+        if currentTime > alert['expires'] or messageType == "Cancel":
             try:
                 # check for a second alert
                 alert       = nws['features'][int(1)]['properties']
