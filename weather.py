@@ -205,7 +205,7 @@ def display_error(error_source):
 
 def get_nws_alerts(alerts_url):
     """
-    Get Severe weather data from NWS
+    Get any 'active' severe weather data from NWS
 
     input:  nothing
     output: string 'string_event'
@@ -225,20 +225,9 @@ def get_nws_alerts(alerts_url):
         messageType = alert['messageType']
         expires     = alert['expires']
         currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
-        if currentTime > alert['expires'] or messageType == "Cancel":
-            try:
-                # check for a second alert
-                alert       = nws['features'][int(1)]['properties']
-                messageType = alert['messageType']
-                expires     = alert['expires']
-                currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
-                if currentTime > expires:
-                    expired = True
-                if expired or messageType == "Cancel":
-                    alert = None
-            except IndexError:
-                alert = None       # no second alert
+
     except IndexError:
+        print("no alerts to process")
         alert    = None            # no first alert
 
     # if we still have one that wasn't canceled...
@@ -247,8 +236,8 @@ def get_nws_alerts(alerts_url):
         urgency     = alert['urgency']
         severity    = alert['severity']
 
-    # TODO: this might be a bit WeatherFlow specific, and is this because some events can be very long ?
-    if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement') or event.endswith('Advisory')):
+    # only care about some alert types - ignore misc. like "Hydrologic Outlook")
+    if alert != None and (event.endswith('Warning') or event.endswith('Watch') or event.endswith('Statement') or event.endswith('Alert') or event.endswith('Advisory')):
         string_event = event
     else:
         string_event = None
@@ -416,12 +405,15 @@ try:
 
         ####alerts_url = "https://api.weather.gov/alerts/active?zone=CAZ072" # Tahoe for test use only
 
-        event = get_nws_alerts(alerts_url)
-        conditions['event'] = event
-
-        if "alerts" in config['debug']:
-            print("alerts = ", event)
-            print(event)
+        try:
+            event = get_nws_alerts(alerts_url)
+            conditions['event'] = event
+            if "alerts" in config['debug']:
+                print("alerts = ", event)
+                print(event)
+        except:
+            print("fail getting alerts")
+            conditions['event'] = None
 
         #---------------------------------------------------------------
         # generate some strings with units and/or rounding as applicable
@@ -448,6 +440,8 @@ try:
         else:
             # handle things like "Partly Sunny then Chance Rain Showers"
             string_description = forecast['shortForecast'].split('then',1)[0]
+            # and like "Showers And Thunderstorms Likely"
+            string_description = string_description.split('And',1)[0]
 
         if "shortForecast" in config['debug']:
             print("shortForecast: ", forecast['shortForecast'])
