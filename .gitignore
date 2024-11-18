@@ -5,3 +5,4 @@ config.json.*
 lib/waveshare_epd/__pycache__
 pic/error.png
 pic/screen_output.png
+doc/pico/Pico_ePaper_Code/*
