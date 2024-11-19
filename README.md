@@ -12,6 +12,12 @@ Note - actual good docs are TBD :-)
 	  <li>Initial Commit.</li>
 	</ul>
 
+## Prerequisites
+
+````
+sudo apt-get install -y python3-pil
+````
+
 ## Setup
 This project assumes you have a working WeeWX system with a linked in webserver.
 

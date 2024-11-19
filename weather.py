@@ -226,6 +226,20 @@ def get_nws_alerts(alerts_url):
         expires     = alert['expires']
         currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
 
+        # if currentTime > alert['expires'] or messageType == "Cancel":
+        #     try:
+        #         # check for a second alert
+        #         alert       = nws['features'][int(1)]['properties']
+        #         messageType = alert['messageType']
+        #         expires     = alert['expires']
+        #         currentTime = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S%z")
+        #         if currentTime > alert['expires'] or messageType == "Cancel":
+        #             alert = None
+        #     except IndexError:
+        #         alert = None       # no second alert
+        # else:
+        #     print("alert = ", alert['event'])
+
     except IndexError:
         print("no alerts to process")
         alert    = None            # no first alert
@@ -389,12 +403,14 @@ try:
         #config['forecast_url'] = "https://api.weather.gov/gridpoints/GLD/116,80/forecast" # DEBUG ODD LOCATION
 
         # TODO: this should be in a try/except
-        forecast = get_nws_forecast(config['forecast_url'],forecast)
+        try:
+            forecast = get_nws_forecast(config['forecast_url'],forecast)
+        except:
+            forecast = None
 
         if 'forecast' in config['debug']:
             print(forecast)
             print("forecast  : ", forecast)
-            print("conditions: ", conditions)
 
         #---------------------------------------------------------------
         # get alerts
@@ -419,6 +435,8 @@ try:
         # generate some strings with units and/or rounding as applicable
         #---------------------------------------------------------------
 
+        #TODO: the try/except for no forecast available needs work below...
+
         # the units are defined and values formatted above in getWeewxConditions
 
         string_temp_max = 'High: ' + str(conditions['temp_max']) + units['temp_max']
@@ -426,7 +444,11 @@ try:
 
         string_baro = str(conditions['baro']) +  ' ' + units['baro']
 
-        string_precip_percent = 'Precip: ' + str(forecast['precip_pct'])  + " " + units['precip_pct']
+        try:
+            string_precip_percent = 'Precip: ' + str(forecast['precip_pct'])  + " " + units['precip_pct']
+        except:
+            string_precip_percent = 'Precip: unavail'
+
         string_feels_like = 'Feels like: ' + str(conditions['feels_like']) + units['feels_like']
         string_temp_current = str(conditions['temp_current']) + units['temp_current']
         string_humidity = 'Humidity: ' + str(conditions['humidity']) + " " + units['humidity']
@@ -434,7 +456,11 @@ try:
         string_wind = 'Wind: ' + str(conditions['wind']) + " " + units['wind'] + " " + conditions['windcardinal']
 
         # "Chance Rain Showers" is 3 char too long to fit
-        string_description = forecast['shortForecast']
+        try:
+            string_description = forecast['shortForecast']
+        except:
+            string_description = None
+
         if len(forecast['shortForecast']) < 18:
             string_description = 'Now: ' + forecast['shortForecast']
         else:
@@ -472,7 +498,11 @@ try:
 
         #TODO: need all NWS variants of what shortForecast might be
 
-        icon_code = forecast['icon_code']
+        if forecast:
+            icon_code = forecast['icon_code']
+        else:
+            icon_code = None
+
         if 'rain' in icon_code:
             icon_code = 'rainy'
         elif 'cloudy' in icon_code:
@@ -640,4 +670,13 @@ sys.exit(0)
 ----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 ----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
 ----------- END OF STASHED DIFFS ETC TO (RE)INCLUDE ABOVE ------------
+
+Traceback (most recent call last):
+  File "/home/pi/Tempest-7.5-E-Paper-Display/weather.py", line 406, in <module>
+    forecast = get_nws_forecast(config['forecast_url'],forecast)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/pi/Tempest-7.5-E-Paper-Display/weather.py", line 278, in get_nws_forecast
+    currentForecast    = nws['properties']['periods'][0]
+                         ~~~^^^^^^^^^^^^^^
+KeyError: 'properties'
 """
