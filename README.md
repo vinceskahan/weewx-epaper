@@ -27,6 +27,9 @@ This project assumes you have a working WeeWX system with a linked in webserver.
 4. To test, cd to the directory and run `python3 weather.py`.  Hit Control-C to exit.
 5. To interactively run in the background, run `bash runit`.  You'll need to manually kill the process in this case.
 
+## Alternate installation via cron
+It might be safer to run the 'run and exit gracefully' variant from cron.  In that case you want to run 'weather-cron.py '.  See the top of that file for the cron invocation and notes
+
 ## Parts List
 * Waveshare 7.5 inch e-paper HAT [(link)](https://www.waveshare.com/7.5inch-e-paper-hat.htm) [(wiki)](https://www.waveshare.com/wiki/7.5inch_e-Paper_HAT_Manual#Working_With_Raspberry_Pi)
 * Raspberry Pi ZeroW+, pi3, or later
