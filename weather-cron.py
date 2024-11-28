@@ -1,4 +1,5 @@
 #-----------------------------------------------------------
+#
 # cron variant - this runs and exits after quieting the screen
 #
 # install in crontab ala:
@@ -9,7 +10,6 @@
 # or the program will likely not run ok via cron
 #
 #-----------------------------------------------------------
-#
 # note: for the 2-color display this needs to use the older
 #       v4.0 version of the waveshare libs but the 3-color
 #       still uses the original upstream (later) library
@@ -645,10 +645,14 @@ try:
         template.close()
 
         # write generated output file to screen
-        write_to_screen(screen_output_file, 300)
+        #write_to_screen(screen_output_file, 300)
+        write_to_screen(screen_output_file, 2)
+
+        #-- not needed, we do this in write_to_screen() above
+        # epd.init()
+        # epd.sleep()
 
         # exit gracefully we hope so we can call this from cron periodically
-        epd.sleep()
         sys.exit(0)
 
 except KeyboardInterrupt:
