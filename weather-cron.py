@@ -2,7 +2,8 @@
 # cron variant - this runs and exits after quieting the screen
 #
 # install in crontab ala:
-#     7,12,17,22,27,32,37,42,47,52,57 * * * * cd /home/pi/Tempest-7.5-E-Paper-Display && python3 weather-cron.py >/tmp/program.out 2&>1
+#     2,7,12,17,22,27,32,37,42,47,52,57 * * * * cd /home/pi/Tempest-7.5-E-Paper-Display && python3 weather-cron.py >/tmp/program.out 2&>1
+#     2-57/5 * * * * cd /home/pi/Tempest-7.5-E-Paper-Display && python3 weather-cron.py >/tmp/program.out 2&>1
 #
 # be sure to redirect stdout and stderr ala the example above
 # or the program will likely not run ok via cron
