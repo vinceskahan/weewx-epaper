@@ -472,16 +472,20 @@ try:
         except:
             string_description = None
 
-        if len(forecast['shortForecast']) < 18:
-            string_description = 'Now: ' + forecast['shortForecast']
-        else:
-            # handle things like "Partly Sunny then Chance Rain Showers"
-            string_description = forecast['shortForecast'].split('then',1)[0]
-            # and like "Showers And Thunderstorms Likely"
-            string_description = string_description.split('And',1)[0]
-
-        if "shortForecast" in config['debug']:
-            print("shortForecast: ", forecast['shortForecast'])
+        try:
+            if len(forecast['shortForecast']) < 18:
+                string_description = 'Now: ' + forecast['shortForecast']
+            else:
+                # handle things like "Partly Sunny then Chance Rain Showers"
+                string_description = forecast['shortForecast'].split('then',1)[0]
+                # and like "Showers And Thunderstorms Likely"
+                string_description = string_description.split('And',1)[0]
+                # and like "Slight Chance Rain Showers"
+                string_description = string_description.split('Slight',1)[1]
+            if "shortForecast" in config['debug']:
+                print("shortForecast: ", forecast['shortForecast'])
+        except:
+            forecast = None
 
         if conditions['event']:
             string_event = conditions['event']
